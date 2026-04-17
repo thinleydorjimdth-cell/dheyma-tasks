@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dheyma — CEO Task Board</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2e3348;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --critical: #ef4444;
+    --high: #f97316;
+    --medium: #eab308;
+    --low: #22c55e;
+    --blocked-bg: #ef444412;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── TOP NAV ── */
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 28px; display: flex; align-items: center; justify-content: space-between;
+    height: 60px; position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-size: 1.2rem; font-weight: 700; letter-spacing: .5px; }
+  .logo span { color: var(--accent2); }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .date-badge { font-size: .8rem; color: var(--muted); }
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: .875rem; font-weight: 600; transition: .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
+  .btn-ghost { background: transparent; color: var(--muted); border: none; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+  .btn-ghost:hover { color: var(--text); background: var(--surface2); }
+  .btn-danger { background: transparent; color: var(--critical); border: 1px solid #ef444440; }
+  .btn-danger:hover { background: #ef444415; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1440px; margin: 0 auto; padding: 24px 28px; }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .stat-label { font-size: .71rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .stat-value { font-size: 1.9rem; font-weight: 700; }
+  .stat-sub { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .s-total { color: var(--accent2); }
+  .s-critical { color: var(--critical); }
+  .s-inprogress { color: var(--high); }
+  .s-done { color: var(--low); }
+  .s-overdue { color: var(--critical); }
+
+  /* ── TOOLBAR ── */
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 300px; }
+  .search-wrap input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px 8px 36px; color: var(--text); font-size: .875rem; outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+  select.filter {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: .875rem; cursor: pointer; outline: none;
+  }
+  select.filter:focus { border-color: var(--accent); }
+  .toolbar-spacer { flex: 1; }
+  .view-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 7px 12px; cursor: pointer; font-size: .85rem; transition: .15s; }
+  .view-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── BADGES ── */
+  .priority-badge, .status-badge, .unit-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 99px; font-size: .75rem; font-weight: 600; white-space: nowrap;
+  }
+  .p-critical { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
+  .p-high     { background: #f9731620; color: var(--high);     border: 1px solid #f9731640; }
+  .p-medium   { background: #eab30820; color: var(--medium);   border: 1px solid #eab30840; }
+  .p-low      { background: #22c55e20; color: var(--low);      border: 1px solid #22c55e40; }
+  .s-notstarted { background: #64748b20; color: #94a3b8;         border: 1px solid #64748b40; }
+  .s-inprog     { background: #6366f120; color: var(--accent2);  border: 1px solid #6366f140; }
+  .s-blocked    { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
+  .s-done-badge { background: #22c55e20; color: var(--low);      border: 1px solid #22c55e40; }
+  .unit-badge { background: var(--surface2); color: var(--accent2); border: 1px solid #6366f130; font-size: .73rem; }
+
+  /* ── TABLE ── */
+  .task-table { width: 100%; border-collapse: collapse; }
+  .task-table th {
+    text-align: left; font-size: .71rem; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .task-table th:hover { color: var(--text); }
+  .task-table th .sa { opacity: .35; margin-left: 4px; }
+  .task-table th.sorted .sa { opacity: 1; color: var(--accent2); }
+  .task-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: .875rem; vertical-align: middle; }
+  .task-table tr:last-child td { border-bottom: none; }
+  .task-table tr { transition: background .1s; cursor: pointer; }
+  .task-table tr:hover td { background: var(--surface2); }
+  .task-table tr.done-row td { opacity: .5; }
+  .task-table tr.blocked-row { background: var(--blocked-bg); }
+  .task-title-cell { font-weight: 500; max-width: 340px; }
+  .task-notes-preview { font-size: .75rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+  .action-cell { display: flex; gap: 6px; opacity: 0; transition: .1s; }
+  tr:hover .action-cell { opacity: 1; }
+  .due-date { font-size: .8rem; }
+  .due-overdue { color: var(--critical); font-weight: 600; }
+  .due-today   { color: var(--high);     font-weight: 600; }
+  .due-soon    { color: var(--medium); }
+  .due-ok      { color: var(--muted); }
+
+  /* ── BOARD ── */
+  .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .kanban-col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .kanban-col-title { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
+  .kanban-count { background: var(--surface2); color: var(--muted); border-radius: 99px; padding: 1px 8px; font-size: .75rem; }
+  .kanban-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s; }
+  .kanban-card:hover { border-color: var(--accent); }
+  .kanban-card-title { font-size: .875rem; font-weight: 600; margin-bottom: 8px; }
+  .kanban-card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+  .kanban-card-due { font-size: .72rem; color: var(--muted); margin-top: 6px; }
+
+  /* ── EMPTY ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .ei { font-size: 3rem; margin-bottom: 12px; }
+
+  /* ── MODAL BASE ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: #00000085; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    width: 580px; max-width: 96vw; max-height: 92vh; overflow-y: auto;
+    padding: 28px; transform: translateY(18px); transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .modal-title { font-size: 1.05rem; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1; }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: .76rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  input[type="text"], input[type="date"], textarea, select.form-select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; color: var(--text); font-size: .875rem; outline: none; width: 100%; font-family: inherit;
+  }
+  input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select.form-select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+  /* ── BU SELECTOR (first step in form) ── */
+  .bu-step {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 18px;
+  }
+  .bu-step-label {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .bu-step-label .req { color: var(--critical); }
+  .bu-select-row { display: flex; gap: 8px; align-items: center; }
+  .bu-select-row select.form-select { flex: 1; font-size: .9rem; font-weight: 600; }
+  .bu-selected-display {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: #6366f115; border: 1px solid #6366f140; border-radius: 8px; font-weight: 600;
+  }
+  .bu-selected-display .bu-name { color: var(--accent2); font-size: .95rem; }
+  .bu-change-btn { background: none; border: none; color: var(--muted); font-size: .8rem; cursor: pointer; margin-left: auto; text-decoration: underline; }
+  .bu-change-btn:hover { color: var(--text); }
+
+  /* ── FORM BODY (revealed after BU) ── */
+  #formBody {
+    overflow: hidden; max-height: 0;
+    opacity: 0; transition: max-height .35s ease, opacity .25s ease;
+  }
+  #formBody.revealed { max-height: 1200px; opacity: 1; }
+
+  /* ── INLINE ADD BU ── */
+  .add-bu-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-bu-row input { flex: 1; }
+
+  /* ── BU MANAGER MODAL ── */
+  .bu-list-item {
+    display: flex; align-items: center; padding: 9px 12px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .bu-list-item span { flex: 1; font-size: .875rem; }
+  .bu-del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; opacity: 0; }
+  .bu-list-item:hover .bu-del-btn { opacity: 1; color: var(--critical); }
+
+  /* ── DETAIL ── */
+  .detail-notes { background: var(--surface2); border-radius: 8px; padding: 12px; font-size: .875rem; color: var(--muted); white-space: pre-wrap; line-height: 1.6; min-height: 50px; }
+  .detail-row { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; font-size: .875rem; }
+  .detail-row .dk { color: var(--muted); min-width: 110px; font-size: .76rem; text-transform: uppercase; letter-spacing: .6px; }
+
+  /* ── CHECKLIST ── */
+  .checklist { margin-top: 4px; }
+  .checklist-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-item input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+  .checklist-item span { font-size: .875rem; flex: 1; }
+  .checklist-item span.checked { text-decoration: line-through; color: var(--muted); }
+  .checklist-item .del-sub { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; opacity: 0; }
+  .checklist-item:hover .del-sub { opacity: 1; }
+  .add-sub-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-sub-row input { flex: 1; }
+
+  /* ── CONFIRM ── */
+  .confirm-overlay {
+    position: fixed; inset: 0; background: #00000090; z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px 28px; width: 340px; }
+  .confirm-box h3 { margin-bottom: 8px; }
+  .confirm-box p { color: var(--muted); font-size: .875rem; margin-bottom: 20px; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ── SUMMARY VIEW ── */
+  .summary-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 28px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+  .chart-card-title { font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 18px; }
+  /* donut */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: .8rem; cursor: pointer; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { color: var(--muted); flex: 1; }
+  .legend-val { font-weight: 700; }
+  /* horizontal bar chart */
+  .hbar-list { display: flex; flex-direction: column; gap: 10px; }
+  .hbar-row { display: flex; flex-direction: column; gap: 4px; }
+  .hbar-meta { display: flex; justify-content: space-between; font-size: .78rem; }
+  .hbar-label { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .hbar-count { font-weight: 700; color: var(--text); }
+  .hbar-track { background: var(--surface2); border-radius: 99px; height: 7px; overflow: hidden; }
+  .hbar-fill  { height: 100%; border-radius: 99px; transition: width .5s ease; }
+  /* priority groups */
+  .pri-group { margin-bottom: 22px; }
+  .pri-group-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: 10px 10px 0 0;
+    font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+    border-bottom: 2px solid;
+  }
+  .pri-group-header .pg-count { margin-left: auto; background: rgba(255,255,255,.1); border-radius: 99px; padding: 1px 9px; font-size: .75rem; }
+  .pg-critical { background: #ef444415; color: var(--critical); border-color: #ef444440; }
+  .pg-high     { background: #f9731615; color: var(--high);     border-color: #f9731640; }
+  .pg-medium   { background: #eab30815; color: var(--medium);   border-color: #eab30840; }
+  .pg-low      { background: #22c55e15; color: var(--low);      border-color: #22c55e40; }
+  .pri-group-body { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; overflow: hidden; }
+  .pg-task-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s;
+  }
+  .pg-task-row:last-child { border-bottom: none; }
+  .pg-task-row:hover { background: var(--surface2); }
+  .pg-task-title { flex: 1; font-size: .875rem; font-weight: 500; }
+  .pg-task-meta  { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .pg-task-meta .unit-badge { font-size: .7rem; }
+  .pg-task-due   { font-size: .75rem; }
+  .pg-empty { padding: 14px 16px; color: var(--muted); font-size: .82rem; font-style: italic; }
+
+  @media (max-width: 900px) { .summary-layout { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .summary-layout { grid-template-columns: 1fr; } }
+
+  /* ── REMINDERS TAB ── */
+  .rem-toolbar { display:flex; justify-content:flex-end; margin-bottom:18px; gap:10px; align-items:center; }
+  .rem-group   { margin-bottom:24px; }
+  .rem-group-hd {
+    font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
+    color:var(--muted); padding-bottom:8px; display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--border); margin-bottom:10px;
+  }
+  .rem-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; margin-bottom:8px; transition:border-color .15s;
+  }
+  .rem-card:hover { border-color:#6366f150; }
+  .rem-card-top  { display:flex; align-items:flex-start; gap:10px; }
+  .rem-icon      { font-size:1.1rem; flex-shrink:0; margin-top:1px; }
+  .rem-card-body { flex:1; }
+  .rem-card-title { font-size:.9rem; font-weight:600; margin-bottom:2px; }
+  .rem-card-note  { font-size:.78rem; color:var(--muted); margin-top:4px; line-height:1.5; }
+  .rem-date-badge { font-size:.72rem; font-weight:600; padding:3px 9px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
+  .rdb-overdue { background:#ef444420;color:var(--critical);border:1px solid #ef444440; }
+  .rdb-today   { background:#f9731620;color:var(--high);    border:1px solid #f9731640; }
+  .rdb-week    { background:#eab30820;color:var(--medium);  border:1px solid #eab30840; }
+  .rdb-later   { background:#6366f120;color:var(--accent2); border:1px solid #6366f140; }
+  .rdb-nodate  { background:#64748b20;color:var(--muted);   border:1px solid #64748b40; }
+  .rem-actions { display:flex; gap:6px; margin-top:9px; justify-content:flex-end; }
+  .rem-task-link { font-size:.72rem; color:var(--accent2); cursor:pointer; text-decoration:underline; margin-top:3px; display:inline-block; }
+  .dismissed-section { margin-top:10px; }
+  .archive-sep { border:none; border-top:1px dashed var(--border); margin:22px 0; }
+  .archive-toggle-btn { background:none; border:none; color:var(--muted); font-size:.82rem; cursor:pointer; display:flex; align-items:center; gap:6px; padding:0; font-family:inherit; }
+  .archive-toggle-btn:hover { color:var(--text); }
+  .archive-list { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+  .archive-item { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; opacity:.6; }
+  .archive-item-text { flex:1; font-size:.85rem; text-decoration:line-through; color:var(--muted); }
+  .archive-item-date { font-size:.72rem; color:var(--muted); white-space:nowrap; }
+
+  /* ── TO-DO TAB ── */
+  .todo-layout { max-width:720px; margin:0 auto; }
+  .todo-quick-add {
+    display:flex; gap:10px; align-items:center;
+    background:var(--surface); border:2px solid var(--border); border-radius:12px;
+    padding:12px 16px; margin-bottom:22px; transition:border-color .15s;
+  }
+  .todo-quick-add:focus-within { border-color:var(--accent); }
+  .todo-quick-add input[type="text"] { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:.9rem; }
+  .todo-quick-add input::placeholder { color:var(--muted); }
+  .tq-date { background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:6px 10px; color:var(--text); font-size:.8rem; outline:none; cursor:pointer; }
+  .todo-section-hd { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .todo-item {
+    display:flex; align-items:flex-start; gap:12px;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; margin-bottom:8px; transition:opacity .35s, transform .35s;
+  }
+  .todo-item.completing { opacity:0; transform:translateX(40px); pointer-events:none; }
+  .todo-cb { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; margin-top:3px; }
+  .todo-content { flex:1; min-width:0; }
+  .todo-text  { font-size:.875rem; font-weight:500; }
+  .todo-note-prev { font-size:.75rem; color:var(--muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .todo-dl-chip { font-size:.72rem; padding:2px 8px; border-radius:99px; margin-top:6px; display:inline-block; font-weight:600; }
+  .todo-item-actions { display:flex; gap:4px; flex-shrink:0; opacity:0; transition:.1s; }
+  .todo-item:hover .todo-item-actions { opacity:1; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  @media (max-width: 700px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .search-wrap { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:0;">
+    <!-- Dheyma Logo (links home) -->
+    <a href="dheyma-home.html" title="Home" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
+      <div style="background:#fff;border-radius:8px;padding:3px 8px;display:flex;align-items:center;justify-content:center;height:42px;">
+        <img src="Dheyma - Primary Gold.png" style="height:36px;width:auto;display:block;" alt="Dheyma">
+      </div>
+    </a>
+    <!-- Module label pill -->
+    <span style="margin-left:10px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);background:#6366f120;border:1px solid #6366f140;border-radius:99px;padding:3px 10px;">Tasks</span>
+  </div>
+  <div class="header-right">
+    <span class="date-badge" id="headerDate"></span>
+    <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ Manage BUs</button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ New Task</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search tasks…" oninput="renderAll()">
+    </div>
+    <select class="filter" id="filterUnit" onchange="renderAll()">
+      <option value="">All Projects / BUs</option>
+    </select>
+    <select class="filter" id="filterPriority" onchange="renderAll()">
+      <option value="">All Priorities</option>
+      <option value="Critical">Critical</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+    <select class="filter" id="filterStatus" onchange="renderAll()">
+      <option value="">All Statuses</option>
+      <option value="Not Started">Not Started</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Blocked">Blocked</option>
+      <option value="Done">Done</option>
+    </select>
+    <div class="toolbar-spacer"></div>
+    <div style="display:flex;gap:4px;">
+      <button class="view-btn active" id="viewTable"     onclick="setView('table')">☰ List</button>
+      <button class="view-btn"        id="viewBoard"     onclick="setView('board')">⊞ Board</button>
+      <button class="view-btn"        id="viewSummary"   onclick="setView('summary')">📊 Summary</button>
+      <button class="view-btn"        id="viewReminders" onclick="setView('reminders')">🔔 Reminders</button>
+      <button class="view-btn"        id="viewTodo"      onclick="setView('todo')">☑ To-Do</button>
+    </div>
+  </div>
+
+  <div id="mainContent"></div>
+</div>
+
+<!-- ══════════════════ ADD / EDIT MODAL ══════════════════ -->
+<div class="modal-overlay" id="taskModal" onclick="closeModalOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Task</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <!-- STEP 1: Project / BU -->
+    <div class="bu-step">
+      <div class="bu-step-label">
+        <span>Project / Business Unit</span><span class="req">*</span>
+      </div>
+      <!-- selector shown when no BU chosen -->
+      <div id="buSelectWrap">
+        <div class="bu-select-row">
+          <select class="form-select" id="f_unit" onchange="onBUSelect()">
+            <option value="">— Select Project / BU —</option>
+          </select>
+        </div>
+        <div class="add-bu-row" id="addBUInlineRow" style="display:none;">
+          <input type="text" id="newBUInput" placeholder="New BU name…" onkeydown="if(event.key==='Enter')saveNewBUInline()" />
+          <button class="btn btn-outline" onclick="saveNewBUInline()">Save</button>
+          <button class="btn btn-ghost" onclick="hideAddBUInline()">✕</button>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn btn-ghost" style="font-size:.8rem;color:var(--muted);" onclick="showAddBUInline()">+ Add new BU</button>
+        </div>
+      </div>
+      <!-- display shown after BU is chosen -->
+      <div id="buSelectedDisplay" style="display:none;">
+        <div class="bu-selected-display">
+          <span style="font-size:1rem;">🏢</span>
+          <span class="bu-name" id="buSelectedName"></span>
+          <button class="bu-change-btn" onclick="changeBU()">Change</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Rest of form (revealed after BU select) -->
+    <div id="formBody">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Task Title *</label>
+          <input type="text" id="f_title" placeholder="What needs to be done?" />
+        </div>
+        <div class="form-group">
+          <label>Assigned To</label>
+          <input type="text" id="f_assignee" placeholder="Name or team" />
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select class="form-select" id="f_priority">
+            <option value="Critical">🔴 Critical</option>
+            <option value="High">🟠 High</option>
+            <option value="Medium" selected>🟡 Medium</option>
+            <option value="Low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select class="form-select" id="f_status">
+            <option value="Not Started" selected>Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Blocked">Blocked</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" id="f_due" />
+        </div>
+        <div class="form-group">
+          <label>Reminder Date</label>
+          <input type="date" id="f_reminder" />
+        </div>
+        <div class="form-group full">
+          <label>Notes / Context</label>
+          <textarea id="f_notes" placeholder="Additional details, links, context…"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Sub-tasks / Checklist</label>
+          <div class="checklist" id="checklistEdit"></div>
+          <div class="add-sub-row">
+            <input type="text" id="newSubInput" placeholder="Add sub-task…" onkeydown="if(event.key==='Enter'){addSubtask();}" />
+            <button class="btn btn-outline" onclick="addSubtask()">Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+      </div>
+    </div>
+    <!-- placeholder shown when no BU selected yet -->
+    <div id="formPlaceholder" style="text-align:center;padding:30px 0 10px;color:var(--muted);font-size:.875rem;">
+      Select a Project / BU above to continue filling in task details.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ DETAIL MODAL ══════════════════ -->
+<div class="modal-overlay" id="detailModal" onclick="closeDetailOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="detailTitle"></span>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div id="detailBody"></div>
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-outline" onclick="closeDetail();openEditModal(currentDetailId)">Edit</button>
+      <button class="btn btn-primary" onclick="cycleStatus(currentDetailId)">Next Status →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ BU MANAGER MODAL ══════════════════ -->
+<div class="modal-overlay" id="buModal" onclick="closeBUModalOnOverlay(event)">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">Manage Projects / BUs</span>
+      <button class="modal-close" onclick="closeBUModal()">✕</button>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:16px;">Add, rename or remove your Business Units. Changes apply immediately.</p>
+    <div id="buManagerList"></div>
+    <div class="add-bu-row" style="margin-top:14px;">
+      <input type="text" id="newBUManagerInput" placeholder="New BU / Project name…" onkeydown="if(event.key==='Enter')addBUFromManager()" />
+      <button class="btn btn-primary" onclick="addBUFromManager()">+ Add</button>
+    </div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="closeBUModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ REMINDER MODAL ══════════════════ -->
+<div class="modal-overlay" id="remModal" onclick="if(event.target===this)closeRemModal()">
+  <div class="modal" style="width:460px;">
+    <div class="modal-header">
+      <span class="modal-title" id="remModalTitle">New Reminder</span>
+      <button class="modal-close" onclick="closeRemModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Title *</label>
+        <input type="text" id="r_title" placeholder="What do you need to be reminded about?" />
+      </div>
+      <div class="form-group full">
+        <label>Date</label>
+        <input type="date" id="r_date" />
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="r_notes" placeholder="Optional details…" style="min-height:70px;"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeRemModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReminder()">Save Reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TO-DO DETAIL MODAL ══════════════════ -->
+<div class="modal-overlay" id="todoModal" onclick="if(event.target===this)closeTodoModal()">
+  <div class="modal" style="width:460px;">
+    <div class="modal-header">
+      <span class="modal-title" id="todoModalTitle">New To-Do</span>
+      <button class="modal-close" onclick="closeTodoModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>To-Do Item *</label>
+        <input type="text" id="td_text" placeholder="What needs to be done?" />
+      </div>
+      <div class="form-group full">
+        <label>Deadline (optional)</label>
+        <input type="date" id="td_deadline" />
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="td_notes" placeholder="Details, context, links…" style="min-height:80px;"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeTodoModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTodo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ CONFIRM DELETE ══════════════════ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3>Delete Task?</h3>
+    <p>This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="document.getElementById('confirmOverlay').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--critical);" onclick="deleteTask()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════
+const DEFAULT_BUS = [
+  'Agri','Sukti','Tourism','Trading',
+  'Logistics','Construction','BYD','Solar EPCF','Solar IPP'
+];
+
+let buList      = JSON.parse(localStorage.getItem('dheyma_bus')       || 'null') || [...DEFAULT_BUS];
+let tasks       = JSON.parse(localStorage.getItem('dheyma_tasks')     || '[]');
+let reminders   = JSON.parse(localStorage.getItem('dheyma_reminders') || '[]');
+let todos       = JSON.parse(localStorage.getItem('dheyma_todos')     || '[]');
+let editingId        = null;
+let currentDetailId  = null;
+let editingRemId     = null;
+let editingTodoId    = null;
+let sortKey          = 'due';
+let sortDir          = 1;
+let currentView      = 'table';
+let prevView         = 'table';
+let editSubtasks     = [];
+let showDismissed    = false;
+let showArchive      = false;
+
+function saveBUs()       { localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
+function saveTasks()     { localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
+function saveReminders() { localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
+function saveTodos()     { localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+function genId()         { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ── SEED ──────────────────────────────────────────────────────────
+if (tasks.length === 0) {
+  const fmt = d => d.toISOString().slice(0,10);
+  const rel = n => { const d = new Date(); d.setDate(d.getDate()+n); return fmt(d); };
+  tasks = [
+    { id:genId(), title:'Review Q2 P&L and runway projections', unit:'Trading', assignee:'Self', priority:'Critical', status:'Not Started', due:rel(2), reminder:rel(1), notes:'Coordinate with CFO before board call.', subtasks:[] },
+    { id:genId(), title:'Approve contractor agreements — site clearing', unit:'Construction', assignee:'Project Manager', priority:'High', status:'In Progress', due:rel(1), reminder:'', notes:'3 contracts pending signature.', subtasks:[{id:genId(),text:'Review T&Cs',done:true},{id:genId(),text:'Sign and return',done:false}] },
+    { id:genId(), title:'BYD EV dealership launch — final checklist', unit:'BYD', assignee:'Self', priority:'Critical', status:'In Progress', due:rel(4), reminder:rel(2), notes:'Coordinate with BYD regional rep. Confirm delivery of first 5 units.', subtasks:[] },
+    { id:genId(), title:'Solar EPCF milestone billing — Phase 1', unit:'Solar EPCF', assignee:'Finance', priority:'High', status:'Blocked', due:rel(0), reminder:'', notes:'Client PPA signature pending before we can invoice.', subtasks:[] },
+    { id:genId(), title:'Sukti lodge — staff hiring & training plan', unit:'Sukti', assignee:'HR Lead', priority:'Medium', status:'Not Started', due:rel(10), reminder:rel(7), notes:'Soft opening in 6 weeks. Need 12 staff minimum.', subtasks:[] },
+    { id:genId(), title:'Tourism board partnership MOU signing', unit:'Tourism', assignee:'Self', priority:'High', status:'Not Started', due:rel(6), reminder:rel(4), notes:'', subtasks:[] },
+    { id:genId(), title:'Agri cold storage procurement — vendor shortlist', unit:'Agri', assignee:'Ops Team', priority:'Medium', status:'Not Started', due:rel(14), reminder:rel(11), notes:'Compare 3 vendors. Budget cap Nu. 8M.', subtasks:[] },
+    { id:genId(), title:'Solar IPP grid-tie approval from BPC', unit:'Solar IPP', assignee:'Self', priority:'High', status:'In Progress', due:rel(20), reminder:rel(15), notes:'Follow up with BPC Director.', subtasks:[] },
+    { id:genId(), title:'Logistics fleet insurance renewal', unit:'Logistics', assignee:'Admin', priority:'Low', status:'Done', due:rel(-2), reminder:'', notes:'Renewed. Docs filed.', subtasks:[] },
+  ];
+  saveTasks();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BU MANAGEMENT
+// ══════════════════════════════════════════════════════════════════
+function populateBUSelect(selectId, currentVal) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select Project / BU —</option>'
+    + buList.map(b => `<option value="${esc(b)}"${b===currentVal?' selected':''}>${esc(b)}</option>`).join('');
+}
+
+function onBUSelect() {
+  const val = document.getElementById('f_unit').value;
+  if (val) {
+    document.getElementById('buSelectWrap').style.display = 'none';
+    document.getElementById('buSelectedDisplay').style.display = 'block';
+    document.getElementById('buSelectedName').textContent = val;
+    document.getElementById('formBody').classList.add('revealed');
+    document.getElementById('formPlaceholder').style.display = 'none';
+    setTimeout(() => document.getElementById('f_title').focus(), 50);
+  }
+}
+
+function changeBU() {
+  document.getElementById('buSelectWrap').style.display = 'block';
+  document.getElementById('buSelectedDisplay').style.display = 'none';
+  document.getElementById('f_unit').value = '';
+  document.getElementById('formBody').classList.remove('revealed');
+  document.getElementById('formPlaceholder').style.display = 'block';
+}
+
+function showAddBUInline() {
+  document.getElementById('addBUInlineRow').style.display = 'flex';
+  setTimeout(() => document.getElementById('newBUInput').focus(), 50);
+}
+function hideAddBUInline() {
+  document.getElementById('addBUInlineRow').style.display = 'none';
+  document.getElementById('newBUInput').value = '';
+}
+function saveNewBUInline() {
+  const name = document.getElementById('newBUInput').value.trim();
+  if (!name) return;
+  if (!buList.includes(name)) { buList.push(name); saveBUs(); renderFilterBU(); }
+  hideAddBUInline();
+  populateBUSelect('f_unit', name);
+  document.getElementById('f_unit').value = name;
+  onBUSelect();
+}
+
+// BU Manager modal
+function openBUManager() {
+  renderBUManagerList();
+  document.getElementById('buModal').classList.add('open');
+  setTimeout(() => document.getElementById('newBUManagerInput').focus(), 100);
+}
+function closeBUModal() {
+  document.getElementById('buModal').classList.remove('open');
+  renderFilterBU();
+}
+function closeBUModalOnOverlay(e) { if (e.target===document.getElementById('buModal')) closeBUModal(); }
+
+function renderBUManagerList() {
+  document.getElementById('buManagerList').innerHTML = buList.map((b,i) => `
+    <div class="bu-list-item">
+      <span>${esc(b)}</span>
+      <button class="bu-del-btn" onclick="deleteBU(${i})" title="Remove">✕</button>
+    </div>`).join('') || '<p style="color:var(--muted);font-size:.875rem;">No BUs defined yet.</p>';
+}
+
+function addBUFromManager() {
+  const inp = document.getElementById('newBUManagerInput');
+  const name = inp.value.trim();
+  if (!name || buList.includes(name)) { inp.focus(); return; }
+  buList.push(name); saveBUs();
+  inp.value = '';
+  renderBUManagerList();
+}
+
+function deleteBU(i) {
+  const name = buList[i];
+  const inUse = tasks.some(t => t.unit === name);
+  if (inUse && !confirm(`"${name}" is used by existing tasks. Remove it anyway?`)) return;
+  buList.splice(i, 1); saveBUs();
+  renderBUManagerList();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FILTERS & SORT
+// ══════════════════════════════════════════════════════════════════
+function renderFilterBU() {
+  const sel = document.getElementById('filterUnit');
+  const cur = sel.value;
+  // Merge buList + any legacy units in tasks
+  const allUnits = [...new Set([...buList, ...tasks.map(t=>t.unit).filter(Boolean)])].sort();
+  sel.innerHTML = '<option value="">All Projects / BUs</option>'
+    + allUnits.map(u=>`<option value="${esc(u)}"${u===cur?' selected':''}>${esc(u)}</option>`).join('');
+}
+
+function getFiltered() {
+  const q   = document.getElementById('searchInput').value.toLowerCase();
+  const unit = document.getElementById('filterUnit').value;
+  const pri  = document.getElementById('filterPriority').value;
+  const sta  = document.getElementById('filterStatus').value;
+  const priOrd = {Critical:0,High:1,Medium:2,Low:3};
+  const staOrd = {Blocked:0,'In Progress':1,'Not Started':2,Done:3};
+  return tasks.filter(t =>
+    (!q   || t.title.toLowerCase().includes(q) || (t.unit||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
+    (!unit || t.unit === unit) &&
+    (!pri  || t.priority === pri) &&
+    (!sta  || t.status === sta)
+  ).sort((a,b) => {
+    let av = a[sortKey]||'', bv = b[sortKey]||'';
+    if (sortKey==='priority') { av = priOrd[av]??9; bv = priOrd[bv]??9; }
+    if (sortKey==='status')   { av = staOrd[av]??9; bv = staOrd[bv]??9; }
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════
+const VIEW_LABELS = { table:'List', board:'Board', summary:'Summary', reminders:'Reminders', todo:'To-Do' };
+
+function backBtn() {
+  if (currentView === 'table') return '';
+  const label = VIEW_LABELS[prevView] || 'List';
+  return `<div style="margin-bottom:18px;">
+    <button onclick="goBack()" style="
+      display:inline-flex;align-items:center;gap:7px;
+      background:var(--surface);border:1px solid var(--border);
+      color:var(--muted);border-radius:8px;padding:7px 14px;
+      font-size:.82rem;font-weight:600;cursor:pointer;
+      font-family:inherit;transition:.15s;
+    " onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent2)'"
+       onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 3L5 8l5 5"/>
+      </svg>
+      Back to ${label}
+    </button>
+  </div>`;
+}
+
+function renderAll() {
+  renderStats();
+  renderFilterBU();
+  if      (currentView === 'table')     renderTable();
+  else if (currentView === 'board')     renderBoard();
+  else if (currentView === 'summary')   renderSummary();
+  else if (currentView === 'reminders') renderReminders();
+  else if (currentView === 'todo')      renderTodo();
+
+  // Inject back button at top of content for all non-list views
+  if (currentView !== 'table') {
+    const mc = document.getElementById('mainContent');
+    const wrap = document.createElement('div');
+    wrap.innerHTML = backBtn();
+    if (wrap.firstChild) mc.insertBefore(wrap.firstChild, mc.firstChild);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SUMMARY VIEW
+// ══════════════════════════════════════════════════════════════════
+function renderSummary() {
+  const active = tasks.filter(t => t.status !== 'Done');
+  const all    = tasks;
+
+  // ── counts ────────────────────────────────────────────────────
+  const priOrder  = ['Critical','High','Medium','Low'];
+  const priColors = { Critical:'#ef4444', High:'#f97316', Medium:'#eab308', Low:'#22c55e' };
+  const priCounts = {};
+  priOrder.forEach(p => priCounts[p] = all.filter(t => t.priority === p).length);
+
+  const staOrder  = ['Not Started','In Progress','Blocked','Done'];
+  const staColors = { 'Not Started':'#64748b','In Progress':'#818cf8','Blocked':'#ef4444','Done':'#22c55e' };
+  const staCounts = {};
+  staOrder.forEach(s => staCounts[s] = all.filter(t => t.status === s).length);
+
+  const buCounts = {};
+  all.forEach(t => { if (t.unit) buCounts[t.unit] = (buCounts[t.unit]||0)+1; });
+  const buSorted = Object.entries(buCounts).sort((a,b)=>b[1]-a[1]);
+  const buMax    = buSorted.length ? buSorted[0][1] : 1;
+
+  // ── chart helpers ─────────────────────────────────────────────
+  const donutSVG = (counts, colors, order, r=54) => {
+    const total = order.reduce((s,k)=>s+(counts[k]||0), 0);
+    if (!total) return `<svg viewBox="0 0 120 120" width="110" height="110"><circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--border)" stroke-width="16"/></svg>`;
+    const cx=60, cy=60, sw=16;
+    let angle = -Math.PI/2;
+    let slices = '';
+    order.forEach(k => {
+      const v = counts[k]||0; if (!v) return;
+      const a = (v/total)*2*Math.PI;
+      const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+      angle += a;
+      const x2=cx+r*Math.cos(angle), y2=cy+r*Math.sin(angle);
+      const large = a > Math.PI ? 1 : 0;
+      slices += `<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}" fill="none" stroke="${colors[k]}" stroke-width="${sw}" stroke-linecap="butt"/>`;
+    });
+    return `<svg viewBox="0 0 120 120" width="110" height="110">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="${sw}"/>
+      ${slices}
+      <text x="${cx}" y="${cy-6}" text-anchor="middle" fill="var(--text)" font-size="18" font-weight="700">${total}</text>
+      <text x="${cx}" y="${cy+12}" text-anchor="middle" fill="var(--muted)" font-size="9">tasks</text>
+    </svg>`;
+  };
+
+  const legendRows = (counts, colors, order) => order.map(k => {
+    const v = counts[k]||0;
+    const total = order.reduce((s,l)=>s+(counts[l]||0),0);
+    const pct = total ? Math.round(v/total*100) : 0;
+    return `<div class="legend-item" onclick="filterAndGoList('${k}')">
+      <span class="legend-dot" style="background:${colors[k]}"></span>
+      <span class="legend-label">${esc(k)}</span>
+      <span class="legend-val" style="color:${colors[k]}">${v}</span>
+      <span style="color:var(--muted);font-size:.72rem;margin-left:2px">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  const hbars = buSorted.slice(0,10).map(([bu, cnt]) => {
+    const pct = Math.round(cnt/buMax*100);
+    return `<div class="hbar-row">
+      <div class="hbar-meta">
+        <span class="hbar-label" title="${esc(bu)}">${esc(bu)}</span>
+        <span class="hbar-count">${cnt}</span>
+      </div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:var(--accent)"></div>
+      </div>
+    </div>`;
+  }).join('') || '<p style="color:var(--muted);font-size:.82rem">No data</p>';
+
+  // ── priority groups (ALL tasks, priority order) ───────────────
+  const priGroups = priOrder.map(p => {
+    const group = all.filter(t => t.priority === p)
+      .sort((a,b) => {
+        const staOrd = {Blocked:0,'In Progress':1,'Not Started':2,Done:3};
+        return (staOrd[a.status]??9)-(staOrd[b.status]??9);
+      });
+    const pgCls = `pg-${p.toLowerCase()}`;
+    const rows = group.length ? group.map(t => {
+      const dc = dueCls(t.due, t.status);
+      const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&t.due<todayStr()?' ⚠':'') : '';
+      return `<div class="pg-task-row" onclick="openDetail('${t.id}')">
+        <div class="pg-task-title${t.status==='Done'?' '+' done-row':''}" style="${t.status==='Done'?'opacity:.45;text-decoration:line-through':''}">
+          ${esc(t.title)}
+        </div>
+        <div class="pg-task-meta">
+          ${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}
+          ${staBadge(t.status)}
+          ${dl?`<span class="pg-task-due due-date ${dc}">${dl}</span>`:''}
+        </div>
+      </div>`;
+    }).join('') : `<div class="pg-empty">No ${p.toLowerCase()} tasks</div>`;
+
+    return `<div class="pri-group">
+      <div class="pri-group-header ${pgCls}">
+        <span style="font-size:1rem">${p==='Critical'?'🔴':p==='High'?'🟠':p==='Medium'?'🟡':'🟢'}</span>
+        <span>${p} Priority</span>
+        <span class="pg-count">${group.length}</span>
+      </div>
+      <div class="pri-group-body">${rows}</div>
+    </div>`;
+  }).join('');
+
+  // ── overdue callout ───────────────────────────────────────────
+  const overdue = all.filter(t => t.due && t.due < todayStr() && t.status !== 'Done');
+  const overdueBar = overdue.length ? `
+    <div style="background:#ef444412;border:1px solid #ef444440;border-radius:10px;padding:12px 18px;margin-bottom:22px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:1.3rem">⚠️</span>
+      <div>
+        <div style="font-weight:700;color:var(--critical);font-size:.875rem;">${overdue.length} overdue task${overdue.length>1?'s':''}</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">${overdue.map(t=>esc(t.title)).join(' · ')}</div>
+      </div>
+      <button class="btn btn-outline" style="margin-left:auto;font-size:.78rem;padding:5px 12px;color:var(--critical);border-color:#ef444440;" onclick="setView('table');document.getElementById('filterStatus').value='';renderAll()">View All</button>
+    </div>` : '';
+
+  document.getElementById('mainContent').innerHTML = `
+    ${overdueBar}
+    <div class="summary-layout">
+      <div class="chart-card">
+        <div class="chart-card-title">By Priority</div>
+        <div class="donut-wrap">
+          ${donutSVG(priCounts, priColors, priOrder)}
+          <div class="donut-legend">${legendRows(priCounts, priColors, priOrder)}</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">By Status</div>
+        <div class="donut-wrap">
+          ${donutSVG(staCounts, staColors, staOrder)}
+          <div class="donut-legend">${legendRows(staCounts, staColors, staOrder)}</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">By Project / BU</div>
+        <div class="hbar-list">${hbars}</div>
+      </div>
+    </div>
+    <div>${priGroups}</div>
+  `;
+}
+
+function filterAndGoList(val) {
+  // try priority first, then status
+  const priorities = ['Critical','High','Medium','Low'];
+  if (priorities.includes(val)) {
+    document.getElementById('filterPriority').value = val;
+    document.getElementById('filterStatus').value   = '';
+  } else {
+    document.getElementById('filterStatus').value   = val;
+    document.getElementById('filterPriority').value = '';
+  }
+  setView('table');
+}
+
+function renderStats() {
+  const today = todayStr();
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-value s-total">${tasks.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Critical</div><div class="stat-value s-critical">${tasks.filter(t=>t.priority==='Critical'&&t.status!=='Done').length}</div></div>
+    <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value s-inprogress">${tasks.filter(t=>t.status==='In Progress').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value s-done">${tasks.filter(t=>t.status==='Done').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value s-overdue">${tasks.filter(t=>t.due&&t.due<today&&t.status!=='Done').length}</div>
+      <div class="stat-sub">${tasks.filter(t=>t.due&&t.due<today&&t.status!=='Done').length>0?'Needs attention':''}</div></div>
+  `;
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  if (!filtered.length) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty-state"><div class="ei">📋</div><p>No tasks found.</p></div>`;
+    return;
+  }
+  const cols = ['title','unit','priority','status','assignee','due',''];
+  const labels = {title:'Task',unit:'Project / BU',priority:'Priority',status:'Status',assignee:'Assigned To',due:'Due Date'};
+  const header = cols.map(c => c
+    ? `<th onclick="sortBy('${c}')" class="${sortKey===c?'sorted':''}">${labels[c]}<span class="sa">${sortKey===c?(sortDir===1?'↑':'↓'):'↕'}</span></th>`
+    : `<th></th>`).join('');
+  const rows = filtered.map(t => {
+    const dc = dueCls(t.due,t.status);
+    const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&t.due<todayStr()?' ⚠':'') : '—';
+    const rc = t.status==='Done'?'done-row':t.status==='Blocked'?'blocked-row':'';
+    return `<tr class="${rc}" onclick="openDetail('${t.id}')">
+      <td class="task-title-cell">${esc(t.title)}${t.notes?`<div class="task-notes-preview">${esc(t.notes)}</div>`:''}</td>
+      <td>${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${priBadge(t.priority)}</td>
+      <td>${staBadge(t.status)}</td>
+      <td style="color:var(--muted);font-size:.82rem">${esc(t.assignee||'—')}</td>
+      <td class="due-date ${dc}">${dl}</td>
+      <td><div class="action-cell">
+        <button class="btn-ghost" title="Edit" onclick="event.stopPropagation();openEditModal('${t.id}')">✎</button>
+        <button class="btn-ghost" title="${t.status==='Done'?'Undo':'Mark done'}" onclick="event.stopPropagation();quickDone('${t.id}')">${t.status==='Done'?'↩':'✓'}</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mainContent').innerHTML =
+    `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;">
+       <table class="task-table"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>
+     </div>`;
+}
+
+function renderBoard() {
+  const filtered = getFiltered();
+  const statuses = ['Not Started','In Progress','Blocked','Done'];
+  const colClr   = {'Not Started':'#94a3b8','In Progress':'var(--accent2)','Blocked':'var(--critical)','Done':'var(--low)'};
+  const cols = statuses.map(s => {
+    const items = filtered.filter(t=>t.status===s);
+    const cards = items.map(t=>`
+      <div class="kanban-card" onclick="openDetail('${t.id}')">
+        <div class="kanban-card-title">${esc(t.title)}</div>
+        <div class="kanban-card-meta">${priBadge(t.priority)}${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}</div>
+        ${t.due?`<div class="kanban-card-due">📅 ${fmtDate(t.due)}</div>`:''}
+      </div>`).join('');
+    return `<div class="kanban-col">
+      <div class="kanban-col-header"><span class="kanban-col-title" style="color:${colClr[s]}">${s}</span><span class="kanban-count">${items.length}</span></div>
+      ${cards||'<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:20px 0">Empty</div>'}
+    </div>`;
+  }).join('');
+  document.getElementById('mainContent').innerHTML = `<div class="kanban-board">${cols}</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ADD / EDIT MODAL
+// ══════════════════════════════════════════════════════════════════
+function openAddModal() {
+  editingId = null; editSubtasks = [];
+  document.getElementById('modalTitle').textContent = 'New Task';
+  populateBUSelect('f_unit', '');
+  document.getElementById('f_unit').value = '';
+  document.getElementById('buSelectWrap').style.display = 'block';
+  document.getElementById('buSelectedDisplay').style.display = 'none';
+  document.getElementById('addBUInlineRow').style.display = 'none';
+  document.getElementById('formBody').classList.remove('revealed');
+  document.getElementById('formPlaceholder').style.display = 'block';
+  ['f_title','f_assignee','f_due','f_reminder','f_notes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f_priority').value = 'Medium';
+  document.getElementById('f_status').value   = 'Not Started';
+  renderChecklistEdit();
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const t = tasks.find(t=>t.id===id);
+  if (!t) return;
+  editingId = id; editSubtasks = JSON.parse(JSON.stringify(t.subtasks||[]));
+  document.getElementById('modalTitle').textContent = 'Edit Task';
+  populateBUSelect('f_unit', t.unit||'');
+  // Show BU as selected
+  if (t.unit) {
+    document.getElementById('buSelectWrap').style.display = 'none';
+    document.getElementById('buSelectedDisplay').style.display = 'block';
+    document.getElementById('buSelectedName').textContent = t.unit;
+    document.getElementById('formBody').classList.add('revealed');
+    document.getElementById('formPlaceholder').style.display = 'none';
+  } else {
+    document.getElementById('buSelectWrap').style.display = 'block';
+    document.getElementById('buSelectedDisplay').style.display = 'none';
+    document.getElementById('formBody').classList.remove('revealed');
+    document.getElementById('formPlaceholder').style.display = 'block';
+  }
+  document.getElementById('addBUInlineRow').style.display = 'none';
+  document.getElementById('f_title').value    = t.title;
+  document.getElementById('f_assignee').value = t.assignee||'';
+  document.getElementById('f_priority').value = t.priority;
+  document.getElementById('f_status').value   = t.status;
+  document.getElementById('f_due').value      = t.due||'';
+  document.getElementById('f_reminder').value = t.reminder||'';
+  document.getElementById('f_notes').value    = t.notes||'';
+  renderChecklistEdit();
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('taskModal').classList.remove('open'); }
+function closeModalOnOverlay(e) { if (e.target===document.getElementById('taskModal')) closeModal(); }
+
+function saveTask() {
+  const unit  = document.getElementById('buSelectedName').textContent.trim() || document.getElementById('f_unit').value;
+  const title = document.getElementById('f_title').value.trim();
+  if (!unit)  { alert('Please select a Project / BU first.'); return; }
+  if (!title) { document.getElementById('f_title').style.borderColor='var(--critical)'; document.getElementById('f_title').focus(); return; }
+  document.getElementById('f_title').style.borderColor = '';
+  const data = {
+    title, unit,
+    assignee: document.getElementById('f_assignee').value.trim(),
+    priority: document.getElementById('f_priority').value,
+    status:   document.getElementById('f_status').value,
+    due:      document.getElementById('f_due').value,
+    reminder: document.getElementById('f_reminder').value,
+    notes:    document.getElementById('f_notes').value.trim(),
+    subtasks: editSubtasks,
+  };
+  if (editingId) {
+    const i = tasks.findIndex(t=>t.id===editingId);
+    tasks[i] = { ...tasks[i], ...data };
+  } else {
+    tasks.unshift({ id:genId(), createdAt:new Date().toISOString(), ...data });
+  }
+  saveTasks(); closeModal(); renderAll();
+}
+
+// ── CHECKLIST ──────────────────────────────────────────────────────
+function renderChecklistEdit() {
+  document.getElementById('checklistEdit').innerHTML = editSubtasks.map((s,i)=>`
+    <div class="checklist-item">
+      <input type="checkbox" ${s.done?'checked':''} onchange="editSubtasks[${i}].done=this.checked">
+      <span class="${s.done?'checked':''}">${esc(s.text)}</span>
+      <button class="del-sub" onclick="editSubtasks.splice(${i},1);renderChecklistEdit()">✕</button>
+    </div>`).join('');
+}
+function addSubtask() {
+  const inp = document.getElementById('newSubInput');
+  const text = inp.value.trim(); if (!text) return;
+  editSubtasks.push({id:genId(),text,done:false}); inp.value='';
+  renderChecklistEdit(); inp.focus();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DETAIL MODAL
+// ══════════════════════════════════════════════════════════════════
+function openDetail(id) {
+  const t = tasks.find(t=>t.id===id); if (!t) return;
+  currentDetailId = id;
+  document.getElementById('detailTitle').textContent = t.title;
+  const checklist = t.subtasks?.length ? `<div class="checklist">${t.subtasks.map((s,i)=>`
+    <div class="checklist-item">
+      <input type="checkbox" ${s.done?'checked':''} onchange="toggleSubtask('${t.id}',${i})">
+      <span class="${s.done?'checked':''}">${esc(s.text)}</span>
+    </div>`).join('')}</div>` : '';
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-row"><span class="dk">Project / BU</span>${t.unit?`<span class="unit-badge" style="font-size:.82rem;">${esc(t.unit)}</span>`:'<span style="color:var(--muted)">—</span>'}</div>
+    <div class="detail-row"><span class="dk">Priority</span>${priBadge(t.priority)}</div>
+    <div class="detail-row"><span class="dk">Status</span>${staBadge(t.status)}</div>
+    <div class="detail-row"><span class="dk">Assigned To</span><span style="color:var(--muted)">${esc(t.assignee||'—')}</span></div>
+    <div class="detail-row"><span class="dk">Due Date</span><span class="due-date ${dueCls(t.due,t.status)}">${t.due?fmtDate(t.due):'—'}</span></div>
+    ${t.reminder?`<div class="detail-row"><span class="dk">Reminder</span><span style="color:var(--muted)">${fmtDate(t.reminder)}</span></div>`:''}
+    ${t.notes?`<div style="margin:14px 0 6px;font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Notes</div><div class="detail-notes">${esc(t.notes)}</div>`:''}
+    ${t.subtasks?.length?`<div style="margin:14px 0 6px;font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Sub-tasks (${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length})</div>${checklist}`:''}
+  `;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('detailModal').classList.remove('open'); }
+function closeDetailOnOverlay(e) { if(e.target===document.getElementById('detailModal')) closeDetail(); }
+
+function toggleSubtask(taskId, idx) {
+  const t = tasks.find(t=>t.id===taskId);
+  t.subtasks[idx].done = !t.subtasks[idx].done;
+  saveTasks(); openDetail(taskId); renderAll();
+}
+function cycleStatus(id) {
+  const order = ['Not Started','In Progress','Blocked','Done'];
+  const t = tasks.find(t=>t.id===id);
+  t.status = order[(order.indexOf(t.status)+1)%order.length];
+  saveTasks(); openDetail(id); renderAll();
+}
+function quickDone(id) {
+  const t = tasks.find(t=>t.id===id);
+  t.status = t.status==='Done'?'Not Started':'Done';
+  saveTasks(); renderAll();
+}
+function confirmDelete() { document.getElementById('confirmOverlay').classList.add('open'); }
+function deleteTask() {
+  tasks = tasks.filter(t=>t.id!==currentDetailId);
+  saveTasks(); closeDetail();
+  document.getElementById('confirmOverlay').classList.remove('open');
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SORT / VIEW
+// ══════════════════════════════════════════════════════════════════
+function sortBy(key) {
+  sortKey === key ? sortDir *= -1 : (sortKey=key, sortDir=1);
+  renderAll();
+}
+function setView(v) {
+  prevView    = currentView;
+  currentView = v;
+  ['table','board','summary','reminders','todo'].forEach(id => {
+    const el = document.getElementById('view' + id.charAt(0).toUpperCase() + id.slice(1));
+    if (el) el.classList.toggle('active', v === id);
+  });
+  document.querySelector('.toolbar').style.display = ['table','board'].includes(v) ? 'flex' : 'none';
+  renderAll();
+}
+
+function goBack() { setView(prevView === currentView ? 'table' : prevView); }
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function in3days()  { const d=new Date(); d.setDate(d.getDate()+3); return d.toISOString().slice(0,10); }
+function dueCls(due,status) {
+  if (!due||status==='Done') return 'due-ok';
+  const t=todayStr();
+  if (due<t)        return 'due-overdue';
+  if (due===t)      return 'due-today';
+  if (due<=in3days()) return 'due-soon';
+  return 'due-ok';
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${+day}, ${y}`;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function priBadge(p) {
+  const m={Critical:'p-critical 🔴',High:'p-high 🟠',Medium:'p-medium 🟡',Low:'p-low 🟢'};
+  const [c,i]=(m[p]||'p-low 🟢').split(' ');
+  return `<span class="priority-badge ${c}">${i} ${esc(p)}</span>`;
+}
+function staBadge(s) {
+  const m={'Not Started':'s-notstarted','In Progress':'s-inprog','Blocked':'s-blocked','Done':'s-done-badge'};
+  return `<span class="status-badge ${m[s]||'s-notstarted'}">${esc(s)}</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// REMINDERS TAB
+// ══════════════════════════════════════════════════════════════════
+function renderReminders() {
+  const today  = todayStr();
+  const in7    = new Date(); in7.setDate(in7.getDate()+7);
+  const in7s   = in7.toISOString().slice(0,10);
+
+  // standalone reminders (not dismissed)
+  const active    = reminders.filter(r => !r.dismissed);
+  const dismissed = reminders.filter(r =>  r.dismissed);
+
+  // task-linked reminders (tasks that have a reminder date set and aren't done)
+  const taskRems = tasks
+    .filter(t => t.reminder && t.status !== 'Done')
+    .map(t => ({ id: t.id, title: t.title, date: t.reminder, notes: t.unit ? `Project: ${t.unit}` : '', _taskId: t.id, _type: 'task' }));
+
+  const all = [
+    ...active.map(r => ({ ...r, _type: 'standalone' })),
+    ...taskRems,
+  ];
+
+  const groups = [
+    { key:'overdue', label:'⚠️ Overdue',   cls:'rdb-overdue', items: all.filter(r => r.date && r.date < today) },
+    { key:'today',   label:'📅 Today',      cls:'rdb-today',   items: all.filter(r => r.date === today) },
+    { key:'week',    label:'📆 This Week',  cls:'rdb-week',    items: all.filter(r => r.date > today && r.date <= in7s) },
+    { key:'later',   label:'🗓 Later',      cls:'rdb-later',   items: all.filter(r => r.date > in7s) },
+    { key:'nodate',  label:'📌 No Date',    cls:'rdb-nodate',  items: all.filter(r => !r.date) },
+  ].filter(g => g.items.length);
+
+  const groupsHTML = groups.map(g => {
+    const cards = g.items.map(r => {
+      const isTask = r._type === 'task';
+      const actions = isTask
+        ? `<button class="btn btn-outline" style="font-size:.75rem;padding:4px 10px;" onclick="openDetail('${r._taskId}')">Open Task →</button>`
+        : `<button class="btn-ghost" title="Edit" onclick="openEditReminder('${r.id}')">✎</button>
+           <button class="btn-ghost" title="Dismiss & archive" onclick="dismissReminder('${r.id}')" style="color:var(--low)">✓ Done</button>
+           <button class="btn-ghost" title="Delete" onclick="deleteReminder('${r.id}')" style="color:var(--critical)">✕</button>`;
+      return `<div class="rem-card">
+        <div class="rem-card-top">
+          <span class="rem-icon">${isTask ? '📋' : '🔔'}</span>
+          <div class="rem-card-body">
+            <div class="rem-card-title">${esc(r.title)}</div>
+            ${r.notes ? `<div class="rem-card-note">${esc(r.notes)}</div>` : ''}
+            ${isTask ? `<span class="rem-task-link" onclick="openDetail('${r._taskId}')">View linked task →</span>` : ''}
+          </div>
+          ${r.date ? `<span class="rem-date-badge ${g.cls}">${fmtDate(r.date)}</span>` : ''}
+        </div>
+        <div class="rem-actions">${actions}</div>
+      </div>`;
+    }).join('');
+    return `<div class="rem-group">
+      <div class="rem-group-hd">${g.label} <span style="color:var(--text);font-weight:700;">(${g.items.length})</span></div>
+      ${cards}
+    </div>`;
+  }).join('') || `<div class="empty-state"><div class="ei">🔔</div><p>No active reminders. Add one to get started.</p></div>`;
+
+  const dismissedHTML = dismissed.length ? `
+    <hr class="archive-sep">
+    <button class="archive-toggle-btn" onclick="toggleDismissed()">
+      ${showDismissed ? '▼' : '▶'}&nbsp; Dismissed / Archived (${dismissed.length})
+    </button>
+    ${showDismissed ? `<div class="archive-list">${dismissed.map(r => `
+      <div class="archive-item">
+        <span style="color:var(--low);font-size:1rem;">✓</span>
+        <span class="archive-item-text">${esc(r.title)}</span>
+        <span class="archive-item-date">${r.dismissedAt ? 'Dismissed ' + fmtDate(r.dismissedAt) : ''}</span>
+        <button class="btn-ghost" title="Restore" onclick="restoreReminder('${r.id}')">↩</button>
+        <button class="btn-ghost" style="color:var(--critical)" onclick="deleteReminder('${r.id}')">✕</button>
+      </div>`).join('')}</div>` : ''}` : '';
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="rem-toolbar">
+      <span style="color:var(--muted);font-size:.82rem;">${active.length + taskRems.length} active · ${dismissed.length} archived</span>
+      <button class="btn btn-primary" onclick="openAddReminder()">+ New Reminder</button>
+    </div>
+    ${groupsHTML}
+    ${dismissedHTML}
+  `;
+}
+
+function openAddReminder() {
+  editingRemId = null;
+  document.getElementById('remModalTitle').textContent = 'New Reminder';
+  document.getElementById('r_title').value = '';
+  document.getElementById('r_date').value  = '';
+  document.getElementById('r_notes').value = '';
+  document.getElementById('remModal').classList.add('open');
+  setTimeout(() => document.getElementById('r_title').focus(), 100);
+}
+function openEditReminder(id) {
+  const r = reminders.find(r => r.id === id); if (!r) return;
+  editingRemId = id;
+  document.getElementById('remModalTitle').textContent = 'Edit Reminder';
+  document.getElementById('r_title').value = r.title;
+  document.getElementById('r_date').value  = r.date  || '';
+  document.getElementById('r_notes').value = r.notes || '';
+  document.getElementById('remModal').classList.add('open');
+}
+function closeRemModal() { document.getElementById('remModal').classList.remove('open'); }
+function saveReminder() {
+  const title = document.getElementById('r_title').value.trim();
+  if (!title) { document.getElementById('r_title').style.borderColor='var(--critical)'; document.getElementById('r_title').focus(); return; }
+  document.getElementById('r_title').style.borderColor = '';
+  const data = { title, date: document.getElementById('r_date').value, notes: document.getElementById('r_notes').value.trim(), dismissed: false };
+  if (editingRemId) {
+    const i = reminders.findIndex(r => r.id === editingRemId);
+    reminders[i] = { ...reminders[i], ...data };
+  } else {
+    reminders.unshift({ id: genId(), createdAt: new Date().toISOString(), ...data });
+  }
+  saveReminders(); closeRemModal(); renderAll();
+}
+function dismissReminder(id) {
+  const r = reminders.find(r => r.id === id); if (!r) return;
+  r.dismissed = true; r.dismissedAt = todayStr();
+  saveReminders(); renderAll();
+}
+function restoreReminder(id) {
+  const r = reminders.find(r => r.id === id); if (!r) return;
+  r.dismissed = false; r.dismissedAt = null;
+  saveReminders(); renderAll();
+}
+function deleteReminder(id) {
+  reminders = reminders.filter(r => r.id !== id);
+  saveReminders(); renderAll();
+}
+function toggleDismissed() { showDismissed = !showDismissed; renderAll(); }
+
+// ══════════════════════════════════════════════════════════════════
+// TO-DO TAB
+// ══════════════════════════════════════════════════════════════════
+function renderTodo() {
+  const today   = todayStr();
+  const active  = todos.filter(t => !t.done).sort((a, b) => {
+    if (!a.deadline && !b.deadline) return 0;
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return a.deadline < b.deadline ? -1 : 1;
+  });
+  const archived = todos.filter(t => t.done).sort((a, b) => (b.doneAt || '') > (a.doneAt || '') ? 1 : -1);
+
+  const todoRows = active.length ? active.map(t => {
+    const overdue = t.deadline && t.deadline < today;
+    const isToday = t.deadline && t.deadline === today;
+    const dlCls   = overdue ? 'due-overdue' : isToday ? 'due-today' : 'due-ok';
+    const dlLabel = t.deadline ? `📅 ${fmtDate(t.deadline)}${overdue ? ' ⚠' : ''}` : '';
+    return `<div class="todo-item" id="todo_${t.id}">
+      <input type="checkbox" class="todo-cb" onchange="completeTodo('${t.id}', this)">
+      <div class="todo-content">
+        <div class="todo-text">${esc(t.text)}</div>
+        ${t.notes ? `<div class="todo-note-prev">${esc(t.notes)}</div>` : ''}
+        ${dlLabel ? `<span class="todo-dl-chip due-date ${dlCls}">${dlLabel}</span>` : ''}
+      </div>
+      <div class="todo-item-actions">
+        <button class="btn-ghost" title="Edit" onclick="openEditTodo('${t.id}')">✎</button>
+        <button class="btn-ghost" title="Delete" style="color:var(--critical)" onclick="deleteTodo('${t.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('') : `<div style="color:var(--muted);font-size:.875rem;padding:28px 0;text-align:center;font-style:italic;">All clear! Add a to-do item above.</div>`;
+
+  const archiveRows = archived.map(t => `
+    <div class="archive-item">
+      <span style="color:var(--low);font-size:1.1rem;flex-shrink:0;">✓</span>
+      <span class="archive-item-text">${esc(t.text)}</span>
+      <span class="archive-item-date">Done ${t.doneAt ? fmtDate(t.doneAt) : ''}</span>
+      <button class="btn-ghost" title="Restore to active" onclick="restoreTodo('${t.id}')" style="color:var(--muted)">↩</button>
+      <button class="btn-ghost" title="Delete permanently" style="color:var(--critical)" onclick="deleteTodo('${t.id}')">✕</button>
+    </div>`).join('');
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="todo-layout">
+      <div class="todo-quick-add">
+        <span style="font-size:1.2rem;color:var(--muted);flex-shrink:0;">+</span>
+        <input type="text" id="quickTodoInput" placeholder="Add a to-do item and press Enter…"
+          onkeydown="if(event.key==='Enter')quickAddTodo()" />
+        <input type="date" class="tq-date" id="quickTodoDeadline" title="Deadline (optional)" />
+        <button class="btn btn-primary" style="padding:6px 14px;flex-shrink:0;" onclick="quickAddTodo()">Add</button>
+        <button class="btn btn-outline" style="padding:6px 12px;font-size:.78rem;flex-shrink:0;white-space:nowrap;" onclick="openAddTodoModal()" title="Add with notes">+ Notes</button>
+      </div>
+
+      <div class="todo-section-hd">
+        Active
+        <span style="background:var(--surface2);border-radius:99px;padding:1px 8px;font-size:.72rem;color:var(--text);">${active.length}</span>
+      </div>
+      ${todoRows}
+
+      ${archived.length ? `
+        <hr class="archive-sep">
+        <button class="archive-toggle-btn" onclick="toggleTodoArchive()">
+          ${showArchive ? '▼' : '▶'}&nbsp; Completed Archive (${archived.length})
+        </button>
+        ${showArchive ? `<div class="archive-list">${archiveRows}</div>` : ''}
+      ` : ''}
+    </div>
+  `;
+  // auto-focus quick-add input
+  const inp = document.getElementById('quickTodoInput');
+  if (inp) inp.focus();
+}
+
+function quickAddTodo() {
+  const inp  = document.getElementById('quickTodoInput');
+  const text = (inp ? inp.value : '').trim();
+  const dl   = document.getElementById('quickTodoDeadline');
+  if (!text) { if (inp) inp.focus(); return; }
+  todos.unshift({ id: genId(), text, notes: '', deadline: dl ? dl.value : '', done: false, doneAt: null, createdAt: new Date().toISOString() });
+  saveTodos(); renderAll();
+}
+function openAddTodoModal() {
+  editingTodoId = null;
+  document.getElementById('todoModalTitle').textContent = 'New To-Do';
+  ['td_text','td_deadline','td_notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('todoModal').classList.add('open');
+  setTimeout(() => document.getElementById('td_text').focus(), 100);
+}
+function openEditTodo(id) {
+  const t = todos.find(t => t.id === id); if (!t) return;
+  editingTodoId = id;
+  document.getElementById('todoModalTitle').textContent = 'Edit To-Do';
+  document.getElementById('td_text').value     = t.text;
+  document.getElementById('td_deadline').value = t.deadline || '';
+  document.getElementById('td_notes').value    = t.notes    || '';
+  document.getElementById('todoModal').classList.add('open');
+}
+function closeTodoModal() { document.getElementById('todoModal').classList.remove('open'); }
+function saveTodo() {
+  const text = document.getElementById('td_text').value.trim();
+  if (!text) { document.getElementById('td_text').style.borderColor='var(--critical)'; document.getElementById('td_text').focus(); return; }
+  document.getElementById('td_text').style.borderColor = '';
+  const data = { text, deadline: document.getElementById('td_deadline').value, notes: document.getElementById('td_notes').value.trim() };
+  if (editingTodoId) {
+    const i = todos.findIndex(t => t.id === editingTodoId);
+    todos[i] = { ...todos[i], ...data };
+  } else {
+    todos.unshift({ id: genId(), done: false, doneAt: null, createdAt: new Date().toISOString(), ...data });
+  }
+  saveTodos(); closeTodoModal(); renderAll();
+}
+function completeTodo(id) {
+  const el = document.getElementById('todo_' + id);
+  if (el) el.classList.add('completing');
+  setTimeout(() => {
+    const t = todos.find(t => t.id === id); if (!t) return;
+    t.done = true; t.doneAt = todayStr();
+    saveTodos(); renderAll();
+  }, 320);
+}
+function restoreTodo(id) {
+  const t = todos.find(t => t.id === id); if (!t) return;
+  t.done = false; t.doneAt = null;
+  saveTodos(); renderAll();
+}
+function deleteTodo(id) {
+  todos = todos.filter(t => t.id !== id);
+  saveTodos(); renderAll();
+}
+function toggleTodoArchive() { showArchive = !showArchive; renderAll(); }
+
+// ══════════════════════════════════════════════════════════════════
+// REMINDERS — popup toast on load
+// ══════════════════════════════════════════════════════════════════
+function checkReminders() {
+  const today = todayStr();
+  const msgs = [
+    ...tasks.filter(t=>t.status!=='Done'&&t.due===today).map(t=>`📅 Due today: "${t.title}"`),
+    ...tasks.filter(t=>t.status!=='Done'&&t.reminder===today).map(t=>`🔔 Task reminder: "${t.title}"`),
+    ...reminders.filter(r=>!r.dismissed&&r.date===today).map(r=>`🔔 ${r.title}`),
+    ...todos.filter(t=>!t.done&&t.deadline===today).map(t=>`☑ To-do due today: "${t.text}"`),
+  ];
+  if (!msgs.length) return;
+  const wrap = document.createElement('div');
+  wrap.style.cssText='position:fixed;top:70px;right:20px;z-index:500;display:flex;flex-direction:column;gap:8px;max-width:340px;';
+  msgs.forEach(m => {
+    const n = document.createElement('div');
+    n.style.cssText='background:#1e2030;border:1px solid #6366f150;color:#e2e8f0;border-radius:10px;padding:10px 16px;font-size:.84rem;box-shadow:0 4px 20px #0006;cursor:pointer;';
+    n.textContent = m;
+    n.onclick = () => n.remove();
+    wrap.appendChild(n);
+  });
+  document.body.appendChild(wrap);
+  setTimeout(()=>wrap.remove(), 7000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('headerDate').textContent =
+  new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+renderAll();
+setTimeout(checkReminders, 1000);
+</script>
+</body>
+</html>
