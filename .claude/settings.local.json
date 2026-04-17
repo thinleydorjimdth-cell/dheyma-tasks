@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"from PIL import Image; print\\('pillow ok'\\)\")",
+      "Bash(python3 -c \"import numpy; print\\('numpy ok'\\)\")",
+      "Bash(python3 -c \"import struct,zlib; print\\('stdlib ok'\\)\")",
+      "Bash(node -e \"const {createCanvas,loadImage}=require\\('canvas'\\);console.log\\('canvas ok'\\)\")",
+      "Read(//usr/local/bin/**)",
+      "Bash(pip3 list:*)",
+      "Bash(python3 -c \"import Quartz; print\\('quartz ok'\\)\")",
+      "Bash(python3 -c \"import AppKit; print\\('appkit ok'\\)\")",
+      "Bash(python3 -)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(git config *)"
+    ]
+  }
+}

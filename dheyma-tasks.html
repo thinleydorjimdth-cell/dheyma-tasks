@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dheyma — CEO Task Board</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -370,8 +371,10 @@
   </div>
   <div class="header-right">
     <span class="date-badge" id="headerDate"></span>
+    <span id="headerUser" style="font-size:.75rem;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ Manage BUs</button>
     <button class="btn btn-primary" onclick="openAddModal()">+ New Task</button>
+    <button class="btn btn-outline" onclick="signOut()" title="Sign out" style="font-size:.8rem;padding:6px 12px;color:var(--muted);">⏻ Sign Out</button>
   </div>
 </header>
 
@@ -619,7 +622,130 @@
   </div>
 </div>
 
+<!-- ══════════════════ LOGIN OVERLAY ══════════════════ -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:0;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 36px;width:400px;max-width:94vw;box-shadow:0 24px 60px #0008;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="display:inline-block;background:#fff;border-radius:12px;padding:10px 16px;margin-bottom:18px;">
+        <img src="Dheyma - Primary Gold.png" style="height:70px;width:auto;display:block;" alt="Dheyma">
+      </div>
+      <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:6px;">Dheyma CEO Portal</h2>
+      <p style="color:var(--muted);font-size:.82rem;">Sign in to access your task board</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px;">
+      <input type="email" id="loginEmail" placeholder="Email address" onkeydown="if(event.key==='Enter')signIn()"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:.9rem;outline:none;width:100%;font-family:inherit;"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')signIn()"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:.9rem;outline:none;width:100%;font-family:inherit;"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      <div id="loginError" style="font-size:.8rem;min-height:18px;padding:0 2px;"></div>
+      <button onclick="signIn()" class="btn btn-primary" style="width:100%;padding:11px;font-size:.9rem;">Sign In</button>
+      <button onclick="signUp()" class="btn btn-outline" style="width:100%;padding:10px;font-size:.8rem;">Create Account</button>
+      <p style="text-align:center;font-size:.73rem;color:var(--muted);margin-top:4px;">Only authorised Dheyma users can access this portal.</p>
+    </div>
+  </div>
+</div>
+
 <script>
+// ══════════════════════════════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://zwywjfkivljkifmhifdc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qdeTQAldycJUMXnlcEkA5A_RNGkEa4F';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+
+function showLogin()  { const o=document.getElementById('loginOverlay'); o.style.display='flex'; }
+function hideLogin()  { const o=document.getElementById('loginOverlay'); o.style.display='none'; }
+
+async function signIn() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const err   = document.getElementById('loginError');
+  err.style.color = 'var(--critical)'; err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Enter your email and password.'; return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) err.textContent = error.message;
+}
+
+async function signUp() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const err   = document.getElementById('loginError');
+  err.textContent = '';
+  if (!email || !pass) { err.style.color='var(--critical)'; err.textContent='Enter email and password.'; return; }
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { err.style.color='var(--critical)'; err.textContent=error.message; }
+  else       { err.style.color='var(--low)';      err.textContent='✓ Check your email for a confirmation link.'; }
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  tasks=[]; todos=[]; reminders=[];
+  renderAll();
+  showLogin();
+}
+
+async function loadAllData() {
+  if (!currentUser) return;
+  const uid = currentUser.id;
+  const [td, tod, rd, sd] = await Promise.all([
+    sb.from('tasks').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+    sb.from('todos').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+    sb.from('reminders').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+    sb.from('settings').select('value').eq('key','bu_list').eq('user_id',uid).maybeSingle(),
+  ]);
+  if (td.data?.length)   { tasks     = td.data;       localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
+  if (tod.data?.length)  { todos     = tod.data;      localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+  if (rd.data?.length)   { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
+  if (sd.data?.value)    { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
+  // Push existing localStorage data to Supabase on first sign-in
+  if (!td.data?.length && tasks.length)     await Promise.all(tasks.map(t     => sb.from('tasks').upsert({...t,    user_id:uid})));
+  if (!tod.data?.length && todos.length)    await Promise.all(todos.map(t     => sb.from('todos').upsert({...t,    user_id:uid})));
+  if (!rd.data?.length && reminders.length) await Promise.all(reminders.map(r => sb.from('reminders').upsert({...r,user_id:uid})));
+  if (!sd.data)          await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid});
+}
+
+async function dbUpsert(table, item) {
+  if (!currentUser) return;
+  sb.from(table).upsert({...item, user_id:currentUser.id}).then(({error})=>{ if(error) console.warn('Sync:',error.message); });
+}
+async function dbDelete(table, id) {
+  if (!currentUser) return;
+  sb.from(table).delete().eq('id',id).eq('user_id',currentUser.id).then(({error})=>{ if(error) console.warn('Del:',error.message); });
+}
+async function dbSaveSettings(key, value) {
+  if (!currentUser) return;
+  sb.from('settings').upsert({key, value, user_id:currentUser.id},{onConflict:'key,user_id'}).then(({error})=>{ if(error) console.warn('Settings:',error.message); });
+}
+
+async function initSupabase() {
+  const { data:{ session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    document.getElementById('headerUser').textContent = currentUser.email;
+    await loadAllData();
+    hideLogin();
+  } else {
+    showLogin();
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      currentUser = session.user;
+      document.getElementById('headerUser').textContent = currentUser.email;
+      await loadAllData();
+      hideLogin();
+      renderAll();
+      setTimeout(checkReminders, 800);
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      document.getElementById('headerUser').textContent = '';
+      showLogin();
+    }
+  });
+}
+
 // ══════════════════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════════════════
@@ -644,10 +770,13 @@ let editSubtasks     = [];
 let showDismissed    = false;
 let showArchive      = false;
 
-function saveBUs()       { localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
-function saveTasks()     { localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
-function saveReminders() { localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
-function saveTodos()     { localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+function saveBUs()                    { localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    dbSaveSettings('bu_list', buList); }
+function saveTasks()                  { localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
+function saveReminders()              { localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
+function saveTodos()                  { localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+function saveTask_db(t)               { dbUpsert('tasks',     t); }
+function saveTodo_db(t)               { dbUpsert('todos',     t); }
+function saveReminder_db(r)           { dbUpsert('reminders', r); }
 function genId()         { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 // ── SEED ──────────────────────────────────────────────────────────
@@ -1123,10 +1252,13 @@ function saveTask() {
   if (editingId) {
     const i = tasks.findIndex(t=>t.id===editingId);
     tasks[i] = { ...tasks[i], ...data };
+    saveTasks(); saveTask_db(tasks[i]);
   } else {
-    tasks.unshift({ id:genId(), createdAt:new Date().toISOString(), ...data });
+    const newTask = { id:genId(), createdAt:new Date().toISOString(), ...data };
+    tasks.unshift(newTask);
+    saveTasks(); saveTask_db(newTask);
   }
-  saveTasks(); closeModal(); renderAll();
+  closeModal(); renderAll();
 }
 
 // ── CHECKLIST ──────────────────────────────────────────────────────
@@ -1176,21 +1308,22 @@ function closeDetailOnOverlay(e) { if(e.target===document.getElementById('detail
 function toggleSubtask(taskId, idx) {
   const t = tasks.find(t=>t.id===taskId);
   t.subtasks[idx].done = !t.subtasks[idx].done;
-  saveTasks(); openDetail(taskId); renderAll();
+  saveTasks(); saveTask_db(t); openDetail(taskId); renderAll();
 }
 function cycleStatus(id) {
   const order = ['Not Started','In Progress','Blocked','Done'];
   const t = tasks.find(t=>t.id===id);
   t.status = order[(order.indexOf(t.status)+1)%order.length];
-  saveTasks(); openDetail(id); renderAll();
+  saveTasks(); saveTask_db(t); openDetail(id); renderAll();
 }
 function quickDone(id) {
   const t = tasks.find(t=>t.id===id);
   t.status = t.status==='Done'?'Not Started':'Done';
-  saveTasks(); renderAll();
+  saveTasks(); saveTask_db(t); renderAll();
 }
 function confirmDelete() { document.getElementById('confirmOverlay').classList.add('open'); }
 function deleteTask() {
+  dbDelete('tasks', currentDetailId);
   tasks = tasks.filter(t=>t.id!==currentDetailId);
   saveTasks(); closeDetail();
   document.getElementById('confirmOverlay').classList.remove('open');
@@ -1356,22 +1489,26 @@ function saveReminder() {
   if (editingRemId) {
     const i = reminders.findIndex(r => r.id === editingRemId);
     reminders[i] = { ...reminders[i], ...data };
+    saveReminders(); saveReminder_db(reminders[i]);
   } else {
-    reminders.unshift({ id: genId(), createdAt: new Date().toISOString(), ...data });
+    const nr = { id: genId(), createdAt: new Date().toISOString(), ...data };
+    reminders.unshift(nr);
+    saveReminders(); saveReminder_db(nr);
   }
-  saveReminders(); closeRemModal(); renderAll();
+  closeRemModal(); renderAll();
 }
 function dismissReminder(id) {
   const r = reminders.find(r => r.id === id); if (!r) return;
   r.dismissed = true; r.dismissedAt = todayStr();
-  saveReminders(); renderAll();
+  saveReminders(); saveReminder_db(r); renderAll();
 }
 function restoreReminder(id) {
   const r = reminders.find(r => r.id === id); if (!r) return;
   r.dismissed = false; r.dismissedAt = null;
-  saveReminders(); renderAll();
+  saveReminders(); saveReminder_db(r); renderAll();
 }
 function deleteReminder(id) {
+  dbDelete('reminders', id);
   reminders = reminders.filter(r => r.id !== id);
   saveReminders(); renderAll();
 }
@@ -1482,10 +1619,13 @@ function saveTodo() {
   if (editingTodoId) {
     const i = todos.findIndex(t => t.id === editingTodoId);
     todos[i] = { ...todos[i], ...data };
+    saveTodos(); saveTodo_db(todos[i]);
   } else {
-    todos.unshift({ id: genId(), done: false, doneAt: null, createdAt: new Date().toISOString(), ...data });
+    const nt = { id: genId(), done: false, doneAt: null, createdAt: new Date().toISOString(), ...data };
+    todos.unshift(nt);
+    saveTodos(); saveTodo_db(nt);
   }
-  saveTodos(); closeTodoModal(); renderAll();
+  closeTodoModal(); renderAll();
 }
 function completeTodo(id) {
   const el = document.getElementById('todo_' + id);
@@ -1493,15 +1633,16 @@ function completeTodo(id) {
   setTimeout(() => {
     const t = todos.find(t => t.id === id); if (!t) return;
     t.done = true; t.doneAt = todayStr();
-    saveTodos(); renderAll();
+    saveTodos(); saveTodo_db(t); renderAll();
   }, 320);
 }
 function restoreTodo(id) {
   const t = todos.find(t => t.id === id); if (!t) return;
   t.done = false; t.doneAt = null;
-  saveTodos(); renderAll();
+  saveTodos(); saveTodo_db(t); renderAll();
 }
 function deleteTodo(id) {
+  dbDelete('todos', id);
   todos = todos.filter(t => t.id !== id);
   saveTodos(); renderAll();
 }
@@ -1537,8 +1678,8 @@ function checkReminders() {
 // ══════════════════════════════════════════════════════════════════
 document.getElementById('headerDate').textContent =
   new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-renderAll();
-setTimeout(checkReminders, 1000);
+renderAll(); // render with cached localStorage while Supabase loads
+initSupabase().then(() => { renderAll(); setTimeout(checkReminders, 800); });
 </script>
 </body>
 </html>
