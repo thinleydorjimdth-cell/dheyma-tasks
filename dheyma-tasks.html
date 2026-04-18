@@ -914,12 +914,59 @@ async function dbSaveSettings(key, value) {
   sb.from('settings').upsert({key, value, user_id:currentUser.id},{onConflict:'user_id,key'}).then(({error})=>{ if(error) console.warn('Settings:',error.message); });
 }
 
+// ── REALTIME ──────────────────────────────────────────────────────
+let realtimeChannel = null;
+
+function setupRealtime(uid) {
+  if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+  realtimeChannel = sb.channel('dheyma-' + uid)
+    .on('postgres_changes', {event:'*', schema:'public', table:'tasks',     filter:`user_id=eq.${uid}`}, p => onRealtimeChange('tasks', p))
+    .on('postgres_changes', {event:'*', schema:'public', table:'todos',     filter:`user_id=eq.${uid}`}, p => onRealtimeChange('todos', p))
+    .on('postgres_changes', {event:'*', schema:'public', table:'reminders', filter:`user_id=eq.${uid}`}, p => onRealtimeChange('reminders', p))
+    .on('postgres_changes', {event:'*', schema:'public', table:'settings',  filter:`user_id=eq.${uid}`}, p => onRealtimeChange('settings', p))
+    .subscribe(status => {
+      const el = document.getElementById('syncStatus');
+      if (!el) return;
+      if (status === 'SUBSCRIBED')    { el.textContent = '🟢 Live'; el.style.color = 'var(--low)'; }
+      else if (status === 'CLOSED')   { el.textContent = '🔴 Offline'; el.style.color = 'var(--critical)'; }
+      else if (status === 'CHANNEL_ERROR') { el.textContent = '⚠ Realtime error'; el.style.color = 'var(--critical)'; }
+    });
+}
+
+function onRealtimeChange(table, payload) {
+  const { eventType, new: rec, old: old_rec } = payload;
+  // Skip changes made by this device (they're already in memory)
+  if (table === 'tasks') {
+    if      (eventType === 'INSERT') { if (!tasks.find(t=>t.id===rec.id)) tasks.unshift(rec); }
+    else if (eventType === 'UPDATE') { const i=tasks.findIndex(t=>t.id===rec.id); if(i>=0) tasks[i]=rec; else tasks.unshift(rec); }
+    else if (eventType === 'DELETE') { tasks = tasks.filter(t=>t.id!==old_rec.id); }
+    localStorage.setItem('dheyma_tasks', JSON.stringify(tasks));
+  } else if (table === 'todos') {
+    if      (eventType === 'INSERT') { if (!todos.find(t=>t.id===rec.id)) todos.unshift(rec); }
+    else if (eventType === 'UPDATE') { const i=todos.findIndex(t=>t.id===rec.id); if(i>=0) todos[i]=rec; else todos.unshift(rec); }
+    else if (eventType === 'DELETE') { todos = todos.filter(t=>t.id!==old_rec.id); }
+    localStorage.setItem('dheyma_todos', JSON.stringify(todos));
+  } else if (table === 'reminders') {
+    if      (eventType === 'INSERT') { if (!reminders.find(r=>r.id===rec.id)) reminders.unshift(rec); }
+    else if (eventType === 'UPDATE') { const i=reminders.findIndex(r=>r.id===rec.id); if(i>=0) reminders[i]=rec; else reminders.unshift(rec); }
+    else if (eventType === 'DELETE') { reminders = reminders.filter(r=>r.id!==old_rec.id); }
+    localStorage.setItem('dheyma_reminders', JSON.stringify(reminders));
+  } else if (table === 'settings') {
+    if (rec?.key === 'bu_list' && rec?.value) {
+      buList = rec.value;
+      localStorage.setItem('dheyma_bus', JSON.stringify(buList));
+    }
+  }
+  renderAll();
+}
+
 async function initSupabase() {
   const { data:{ session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
     document.getElementById('headerUser').textContent = currentUser.email;
     await loadAllData();
+    setupRealtime(currentUser.id);
     hideLogin();
   } else {
     showLogin();
@@ -929,12 +976,14 @@ async function initSupabase() {
       currentUser = session.user;
       document.getElementById('headerUser').textContent = currentUser.email;
       await loadAllData();
+      setupRealtime(currentUser.id);
       hideLogin();
       renderAll();
       setTimeout(checkReminders, 800);
     } else if (event === 'SIGNED_OUT') {
       currentUser = null;
       document.getElementById('headerUser').textContent = '';
+      if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
       showLogin();
     }
   });
