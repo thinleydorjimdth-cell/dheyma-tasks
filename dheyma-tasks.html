@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Dheyma — CEO Task Board</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -343,16 +346,133 @@
   .todo-item-actions { display:flex; gap:4px; flex-shrink:0; opacity:0; transition:.1s; }
   .todo-item:hover .todo-item-actions { opacity:1; }
 
+  /* ── DESKTOP/MOBILE TABLE CELL VISIBILITY ── */
+  .mob-meta-cell { display: none; }
+  .desk-only { display: table-cell; }
+
   /* ── SCROLLBAR ── */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
-  @media (max-width: 700px) {
-    .form-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(3, 1fr); }
-    .toolbar { flex-direction: column; align-items: stretch; }
+  /* ══════════════════════════════════════════
+     MOBILE & TABLET  (≤ 768px)
+  ══════════════════════════════════════════ */
+  @media (max-width: 768px) {
+
+    /* ── Header ── */
+    header { padding: 0 14px; height: 54px; }
+    .date-badge { display: none; }
+    #headerUser { display: none !important; }
+    .header-right { gap: 6px; }
+    .btn { padding: 7px 11px; font-size: .8rem; }
+    /* Hide text labels on icon-heavy header buttons, keep icons */
+    .hd-label { display: none; }
+
+    /* ── Container ── */
+    .container { padding: 14px 14px; }
+
+    /* ── Stats row ── */
+    .stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .stat-card { padding: 11px 10px; }
+    .stat-value { font-size: 1.55rem; }
+    .stat-label { font-size: .65rem; }
+
+    /* ── Toolbar ── */
+    .toolbar { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 14px; }
     .search-wrap { max-width: 100%; }
+    select.filter { width: 100%; font-size: .9rem; padding: 9px 12px; }
+    .toolbar-spacer { display: none; }
+
+    /* View-switcher buttons: horizontal scroll strip */
+    .view-switcher {
+      display: flex !important; overflow-x: auto; gap: 6px;
+      padding-bottom: 4px; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .view-switcher::-webkit-scrollbar { display: none; }
+    .view-btn { white-space: nowrap; flex-shrink: 0; padding: 8px 13px; font-size: .82rem; min-height: 38px; }
+
+    /* ── TABLE → Mobile card list ── */
+    .mob-meta-cell { display: block !important; }
+    .desk-only { display: none !important; }
+    /* Reflow table as cards */
+    .task-table thead { display: none; }
+    .task-table, .task-table tbody { display: block; width: 100%; }
+    .task-table tr {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 10px; padding: 13px 14px 13px 14px;
+      display: flex; flex-direction: column; gap: 4px;
+      position: relative; cursor: pointer;
+    }
+    .task-table tr.blocked-row { background: var(--blocked-bg); }
+    .task-table tr:hover td { background: transparent; }
+    .task-table td { display: block; padding: 0; border: none; }
+    .task-title-cell { font-size: .92rem; font-weight: 600; max-width: calc(100% - 60px); }
+    .task-notes-preview { max-width: 100%; }
+    .task-meta-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 4px; }
+    /* Action cell: top-right corner */
+    .action-cell { opacity: 1 !important; position: absolute; top: 10px; right: 8px; }
+
+    /* ── Kanban board ── */
+    .kanban-board {
+      display: flex !important; overflow-x: auto;
+      gap: 12px; padding-bottom: 16px;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      grid-template-columns: none !important;
+    }
+    .kanban-board::-webkit-scrollbar { display: none; }
+    .kanban-col { min-width: 260px; flex-shrink: 0; }
+
+    /* ── Summary charts ── */
+    .summary-layout { grid-template-columns: 1fr !important; }
+    .donut-wrap { flex-direction: column; align-items: center; gap: 14px; }
+
+    /* ── Priority-group task rows ── */
+    .pg-task-row { flex-wrap: wrap; gap: 6px; }
+    .pg-task-meta { flex-wrap: wrap; justify-content: flex-start; }
+
+    /* ── Modals — slide up from bottom ── */
+    .modal-overlay { align-items: flex-end; }
+    .modal {
+      width: 100% !important; max-width: 100% !important;
+      border-radius: 20px 20px 0 0 !important;
+      max-height: 92vh !important; padding: 20px 18px;
+      transform: translateY(100%) !important;
+    }
+    .modal-overlay.open .modal { transform: translateY(0) !important; }
+
+    /* Confirm box */
+    .confirm-box { width: 92vw; border-radius: 16px; }
+
+    /* ── Forms ── */
+    .form-grid { grid-template-columns: 1fr; }
+    .bu-select-row { flex-direction: column; }
+
+    /* ── Reminders toolbar ── */
+    .rem-toolbar { flex-wrap: wrap; }
+
+    /* ── To-Do ── */
+    .todo-layout { max-width: 100%; }
+    .todo-quick-add { flex-wrap: wrap; gap: 8px; }
+    .tq-date { width: 100%; }
+    .todo-item-actions { opacity: 1 !important; }
+
+    /* ── Login overlay ── */
+    #loginOverlay > div { width: 94vw !important; padding: 28px 20px !important; }
+
+    /* ── Touch targets ── */
+    .btn, .view-btn, .btn-ghost, .modal-close { min-height: 40px; }
+    select.filter, input[type="text"], input[type="date"],
+    textarea, select.form-select { font-size: 16px; /* prevents iOS zoom */ min-height: 44px; }
+  }
+
+  /* ── Extra small phones (≤ 400px) ── */
+  @media (max-width: 400px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .stat-card:last-child { grid-column: 1 / -1; }
+    header { padding: 0 10px; }
+    .logo img { height: 28px !important; }
   }
 </style>
 </head>
@@ -405,7 +525,7 @@
       <option value="Done">Done</option>
     </select>
     <div class="toolbar-spacer"></div>
-    <div style="display:flex;gap:4px;">
+    <div class="view-switcher" style="display:flex;gap:4px;">
       <button class="view-btn active" id="viewTable"     onclick="setView('table')">☰ List</button>
       <button class="view-btn"        id="viewBoard"     onclick="setView('board')">⊞ Board</button>
       <button class="view-btn"        id="viewSummary"   onclick="setView('summary')">📊 Summary</button>
@@ -1142,11 +1262,18 @@ function renderTable() {
     const rc = t.status==='Done'?'done-row':t.status==='Blocked'?'blocked-row':'';
     return `<tr class="${rc}" onclick="openDetail('${t.id}')">
       <td class="task-title-cell">${esc(t.title)}${t.notes?`<div class="task-notes-preview">${esc(t.notes)}</div>`:''}</td>
-      <td>${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
-      <td>${priBadge(t.priority)}</td>
-      <td>${staBadge(t.status)}</td>
-      <td style="color:var(--muted);font-size:.82rem">${esc(t.assignee||'—')}</td>
-      <td class="due-date ${dc}">${dl}</td>
+      <td class="mob-meta-cell"><div class="task-meta-row">
+        ${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}
+        ${priBadge(t.priority)}
+        ${staBadge(t.status)}
+        <span style="color:var(--muted);font-size:.78rem">${esc(t.assignee||'')}</span>
+        <span class="due-date ${dc}" style="font-size:.78rem">${dl}</span>
+      </div></td>
+      <td class="desk-only">${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="desk-only">${priBadge(t.priority)}</td>
+      <td class="desk-only">${staBadge(t.status)}</td>
+      <td class="desk-only" style="color:var(--muted);font-size:.82rem">${esc(t.assignee||'—')}</td>
+      <td class="desk-only due-date ${dc}">${dl}</td>
       <td><div class="action-cell">
         <button class="btn-ghost" title="Edit" onclick="event.stopPropagation();openEditModal('${t.id}')">✎</button>
         <button class="btn-ghost" title="${t.status==='Done'?'Undo':'Mark done'}" onclick="event.stopPropagation();quickDone('${t.id}')">${t.status==='Done'?'↩':'✓'}</button>
