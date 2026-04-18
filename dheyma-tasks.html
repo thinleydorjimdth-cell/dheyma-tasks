@@ -491,10 +491,12 @@
   </div>
   <div class="header-right">
     <span class="date-badge" id="headerDate"></span>
+    <span id="syncStatus" style="font-size:.75rem;white-space:nowrap;"></span>
     <span id="headerUser" style="font-size:.75rem;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-    <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ Manage BUs</button>
-    <button class="btn btn-primary" onclick="openAddModal()">+ New Task</button>
-    <button class="btn btn-outline" onclick="signOut()" title="Sign out" style="font-size:.8rem;padding:6px 12px;color:var(--muted);">⏻ Sign Out</button>
+    <button class="btn btn-outline" onclick="syncNow()" title="Pull latest data from all devices" style="font-size:.8rem;padding:6px 12px;">⟳ Sync</button>
+    <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ <span class="hd-label">Manage BUs</span></button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ <span class="hd-label">New Task</span></button>
+    <button class="btn btn-outline" onclick="signOut()" title="Sign out" style="font-size:.8rem;padding:6px 12px;color:var(--muted);">⏻</button>
   </div>
 </header>
 
@@ -847,8 +849,9 @@ function cleanReminder(r, uid) {
   };
 }
 
-async function loadAllData() {
+async function loadAllData(silent=false) {
   if (!currentUser) return;
+  if (!silent) setSyncStatus('syncing');
   const uid = currentUser.id;
   const [td, tod, rd, sd] = await Promise.all([
     sb.from('tasks').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
@@ -856,15 +859,40 @@ async function loadAllData() {
     sb.from('reminders').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
     sb.from('settings').select('value').eq('key','bu_list').eq('user_id',uid).maybeSingle(),
   ]);
-  if (td.data?.length)   { tasks     = td.data;       localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
-  if (tod.data?.length)  { todos     = tod.data;      localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
-  if (rd.data?.length)   { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
-  if (sd.data?.value)    { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
-  // Push existing localStorage data to Supabase on first sign-in
-  if (!td.data?.length  && tasks.length)     await Promise.all(tasks.map(t     => sb.from('tasks').upsert(cleanTask(t,uid))));
-  if (!tod.data?.length && todos.length)    await Promise.all(todos.map(t     => sb.from('todos').upsert(cleanTodo(t,uid))));
-  if (!rd.data?.length  && reminders.length) await Promise.all(reminders.map(r => sb.from('reminders').upsert(cleanReminder(r,uid))));
-  if (!sd.data)          await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid},{onConflict:'user_id,key'});
+  const anyError = td.error || tod.error || rd.error;
+  if (anyError) { setSyncStatus('error', anyError.message); return; }
+
+  if (td.data?.length)  { tasks     = td.data;       localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
+  if (tod.data?.length) { todos     = tod.data;      localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+  if (rd.data?.length)  { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
+  if (sd.data?.value)   { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
+
+  // First sign-in on this device: push localStorage → Supabase
+  if (!td.data?.length  && tasks.length)
+    await Promise.all(tasks.map(t => sb.from('tasks').upsert(cleanTask(t,uid))));
+  if (!tod.data?.length && todos.length)
+    await Promise.all(todos.map(t => sb.from('todos').upsert(cleanTodo(t,uid))));
+  if (!rd.data?.length  && reminders.length)
+    await Promise.all(reminders.map(r => sb.from('reminders').upsert(cleanReminder(r,uid))));
+  if (!sd.data)
+    await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid},{onConflict:'user_id,key'});
+
+  setSyncStatus('ok');
+}
+
+function setSyncStatus(state, msg) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (state==='syncing') { el.textContent='⟳ Syncing…'; el.style.color='var(--muted)'; }
+  else if (state==='ok') { el.textContent='✓ Synced';  el.style.color='var(--low)';
+    setTimeout(()=>{ if(el.textContent==='✓ Synced') el.textContent=''; }, 3000); }
+  else { el.textContent='⚠ Sync error: '+msg; el.style.color='var(--critical)'; }
+}
+
+async function syncNow() {
+  if (!currentUser) return;
+  await loadAllData();
+  renderAll();
 }
 
 async function dbUpsert(table, item) {
@@ -1764,8 +1792,9 @@ function quickAddTodo() {
   const text = (inp ? inp.value : '').trim();
   const dl   = document.getElementById('quickTodoDeadline');
   if (!text) { if (inp) inp.focus(); return; }
-  todos.unshift({ id: genId(), text, notes: '', deadline: dl ? dl.value : '', done: false, doneAt: null, createdAt: new Date().toISOString() });
-  saveTodos(); renderAll();
+  const nt = { id: genId(), text, notes: '', deadline: dl ? dl.value : '', done: false, done_at: '' };
+  todos.unshift(nt);
+  saveTodos(); saveTodo_db(nt); renderAll();
 }
 function openAddTodoModal() {
   editingTodoId = null;
@@ -1853,6 +1882,31 @@ document.getElementById('headerDate').textContent =
   new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 renderAll(); // render with cached localStorage while Supabase loads
 initSupabase().then(() => { renderAll(); setTimeout(checkReminders, 800); });
+
+// Auto-sync when user returns to the tab/app (e.g. switching devices)
+let lastSync = 0;
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    const now = Date.now();
+    if (now - lastSync > 30000) { // at most once every 30 seconds
+      lastSync = now;
+      await loadAllData(true); // silent (no spinner)
+      renderAll();
+    }
+  }
+});
+
+// Also sync when window gets focus (iPad / desktop switching apps)
+window.addEventListener('focus', async () => {
+  if (currentUser) {
+    const now = Date.now();
+    if (now - lastSync > 30000) {
+      lastSync = now;
+      await loadAllData(true);
+      renderAll();
+    }
+  }
+});
 </script>
 </body>
 </html>
