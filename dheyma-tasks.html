@@ -807,6 +807,46 @@ async function signOut() {
   showLogin();
 }
 
+// ── DB field sanitisers — only send columns that exist in the schema ──
+function cleanTask(t, uid) {
+  return {
+    id:        t.id,
+    user_id:   uid,
+    title:     t.title     || '',
+    unit:      t.unit      || '',
+    assignee:  t.assignee  || '',
+    priority:  t.priority  || 'Medium',
+    status:    t.status    || 'Not Started',
+    due:       t.due       || '',
+    reminder:  t.reminder  || '',
+    notes:     t.notes     || '',
+    subtasks:  t.subtasks  || [],
+  };
+}
+function cleanTodo(t, uid) {
+  return {
+    id:       t.id,
+    user_id:  uid,
+    text:     t.text     || '',
+    notes:    t.notes    || '',
+    deadline: t.deadline || '',
+    done:     t.done     || false,
+    done_at:  t.done_at  || t.doneAt || '',
+  };
+}
+function cleanReminder(r, uid) {
+  return {
+    id:           r.id,
+    user_id:      uid,
+    title:        r.title        || '',
+    notes:        r.notes        || '',
+    date:         r.date         || '',
+    dismissed:    r.dismissed    || false,
+    dismissed_at: r.dismissed_at || r.dismissedAt || '',
+    task_id:      r.task_id      || r.taskId || r._taskId || '',
+  };
+}
+
 async function loadAllData() {
   if (!currentUser) return;
   const uid = currentUser.id;
@@ -821,15 +861,21 @@ async function loadAllData() {
   if (rd.data?.length)   { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
   if (sd.data?.value)    { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
   // Push existing localStorage data to Supabase on first sign-in
-  if (!td.data?.length && tasks.length)     await Promise.all(tasks.map(t     => sb.from('tasks').upsert({...t,    user_id:uid})));
-  if (!tod.data?.length && todos.length)    await Promise.all(todos.map(t     => sb.from('todos').upsert({...t,    user_id:uid})));
-  if (!rd.data?.length && reminders.length) await Promise.all(reminders.map(r => sb.from('reminders').upsert({...r,user_id:uid})));
-  if (!sd.data)          await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid});
+  if (!td.data?.length  && tasks.length)     await Promise.all(tasks.map(t     => sb.from('tasks').upsert(cleanTask(t,uid))));
+  if (!tod.data?.length && todos.length)    await Promise.all(todos.map(t     => sb.from('todos').upsert(cleanTodo(t,uid))));
+  if (!rd.data?.length  && reminders.length) await Promise.all(reminders.map(r => sb.from('reminders').upsert(cleanReminder(r,uid))));
+  if (!sd.data)          await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid},{onConflict:'user_id,key'});
 }
 
 async function dbUpsert(table, item) {
   if (!currentUser) return;
-  sb.from(table).upsert({...item, user_id:currentUser.id}).then(({error})=>{ if(error) console.warn('Sync:',error.message); });
+  const uid = currentUser.id;
+  let row;
+  if (table==='tasks')     row = cleanTask(item, uid);
+  else if (table==='todos')     row = cleanTodo(item, uid);
+  else if (table==='reminders') row = cleanReminder(item, uid);
+  else row = {...item, user_id: uid};
+  sb.from(table).upsert(row).then(({error})=>{ if(error) console.warn('Sync '+table+':', error.message); });
 }
 async function dbDelete(table, id) {
   if (!currentUser) return;
@@ -837,7 +883,7 @@ async function dbDelete(table, id) {
 }
 async function dbSaveSettings(key, value) {
   if (!currentUser) return;
-  sb.from('settings').upsert({key, value, user_id:currentUser.id},{onConflict:'key,user_id'}).then(({error})=>{ if(error) console.warn('Settings:',error.message); });
+  sb.from('settings').upsert({key, value, user_id:currentUser.id},{onConflict:'user_id,key'}).then(({error})=>{ if(error) console.warn('Settings:',error.message); });
 }
 
 async function initSupabase() {
@@ -1574,7 +1620,7 @@ function renderReminders() {
       <div class="archive-item">
         <span style="color:var(--low);font-size:1rem;">✓</span>
         <span class="archive-item-text">${esc(r.title)}</span>
-        <span class="archive-item-date">${r.dismissedAt ? 'Dismissed ' + fmtDate(r.dismissedAt) : ''}</span>
+        <span class="archive-item-date">${r.dismissed_at ? 'Dismissed ' + fmtDate(r.dismissed_at) : ''}</span>
         <button class="btn-ghost" title="Restore" onclick="restoreReminder('${r.id}')">↩</button>
         <button class="btn-ghost" style="color:var(--critical)" onclick="deleteReminder('${r.id}')">✕</button>
       </div>`).join('')}</div>` : ''}` : '';
@@ -1626,12 +1672,12 @@ function saveReminder() {
 }
 function dismissReminder(id) {
   const r = reminders.find(r => r.id === id); if (!r) return;
-  r.dismissed = true; r.dismissedAt = todayStr();
+  r.dismissed = true; r.dismissed_at = todayStr();
   saveReminders(); saveReminder_db(r); renderAll();
 }
 function restoreReminder(id) {
   const r = reminders.find(r => r.id === id); if (!r) return;
-  r.dismissed = false; r.dismissedAt = null;
+  r.dismissed = false; r.dismissed_at = '';
   saveReminders(); saveReminder_db(r); renderAll();
 }
 function deleteReminder(id) {
@@ -1652,7 +1698,7 @@ function renderTodo() {
     if (!b.deadline) return -1;
     return a.deadline < b.deadline ? -1 : 1;
   });
-  const archived = todos.filter(t => t.done).sort((a, b) => (b.doneAt || '') > (a.doneAt || '') ? 1 : -1);
+  const archived = todos.filter(t => t.done).sort((a, b) => (b.done_at || '') > (a.done_at || '') ? 1 : -1);
 
   const todoRows = active.length ? active.map(t => {
     const overdue = t.deadline && t.deadline < today;
@@ -1677,7 +1723,7 @@ function renderTodo() {
     <div class="archive-item">
       <span style="color:var(--low);font-size:1.1rem;flex-shrink:0;">✓</span>
       <span class="archive-item-text">${esc(t.text)}</span>
-      <span class="archive-item-date">Done ${t.doneAt ? fmtDate(t.doneAt) : ''}</span>
+      <span class="archive-item-date">Done ${t.done_at ? fmtDate(t.done_at) : ''}</span>
       <button class="btn-ghost" title="Restore to active" onclick="restoreTodo('${t.id}')" style="color:var(--muted)">↩</button>
       <button class="btn-ghost" title="Delete permanently" style="color:var(--critical)" onclick="deleteTodo('${t.id}')">✕</button>
     </div>`).join('');
@@ -1759,13 +1805,13 @@ function completeTodo(id) {
   if (el) el.classList.add('completing');
   setTimeout(() => {
     const t = todos.find(t => t.id === id); if (!t) return;
-    t.done = true; t.doneAt = todayStr();
+    t.done = true; t.done_at = todayStr();
     saveTodos(); saveTodo_db(t); renderAll();
   }, 320);
 }
 function restoreTodo(id) {
   const t = todos.find(t => t.id === id); if (!t) return;
-  t.done = false; t.doneAt = null;
+  t.done = false; t.done_at = '';
   saveTodos(); saveTodo_db(t); renderAll();
 }
 function deleteTodo(id) {

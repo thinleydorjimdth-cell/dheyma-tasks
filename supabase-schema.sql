@@ -1,63 +1,72 @@
--- ─────────────────────────────────────────────
--- Dheyma Tasks — Supabase Schema
--- Run this once in: Supabase → SQL Editor → New query
--- ─────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════
+-- Dheyma CEO Portal — Supabase Schema  (run in SQL Editor)
+-- Safe to re-run: drops and recreates all tables cleanly
+-- ══════════════════════════════════════════════════════
 
--- TASKS
-CREATE TABLE IF NOT EXISTS tasks (
-  id          TEXT PRIMARY KEY,
-  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  title       TEXT NOT NULL,
-  unit        TEXT    DEFAULT '',
-  assignee    TEXT    DEFAULT '',
-  priority    TEXT    DEFAULT 'Medium',
-  status      TEXT    DEFAULT 'Not Started',
-  due         TEXT,
-  reminder    TEXT,
-  notes       TEXT    DEFAULT '',
-  subtasks    JSONB   DEFAULT '[]',
-  created_at  TEXT
+drop table if exists public.tasks     cascade;
+drop table if exists public.todos     cascade;
+drop table if exists public.reminders cascade;
+drop table if exists public.settings  cascade;
+
+-- ── TASKS ──────────────────────────────────────────────
+create table public.tasks (
+  id         text        primary key,
+  user_id    uuid        references auth.users not null,
+  title      text        not null default '',
+  unit       text        default '',
+  assignee   text        default '',
+  priority   text        default 'Medium',
+  status     text        default 'Not Started',
+  due        text        default '',
+  reminder   text        default '',
+  notes      text        default '',
+  subtasks   jsonb       default '[]',
+  created_at timestamptz default now()
 );
+alter table public.tasks enable row level security;
+create policy "tasks_own" on public.tasks
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- TO-DOS
-CREATE TABLE IF NOT EXISTS todos (
-  id          TEXT PRIMARY KEY,
-  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  text        TEXT NOT NULL,
-  notes       TEXT    DEFAULT '',
-  deadline    TEXT,
-  done        BOOLEAN DEFAULT FALSE,
-  done_at     TEXT,
-  created_at  TEXT
+-- ── TODOS ──────────────────────────────────────────────
+create table public.todos (
+  id         text        primary key,
+  user_id    uuid        references auth.users not null,
+  text       text        not null default '',
+  notes      text        default '',
+  deadline   text        default '',
+  done       boolean     default false,
+  done_at    text        default '',
+  created_at timestamptz default now()
 );
+alter table public.todos enable row level security;
+create policy "todos_own" on public.todos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- REMINDERS
-CREATE TABLE IF NOT EXISTS reminders (
-  id           TEXT PRIMARY KEY,
-  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  title        TEXT NOT NULL,
-  date         TEXT,
-  notes        TEXT    DEFAULT '',
-  dismissed    BOOLEAN DEFAULT FALSE,
-  dismissed_at TEXT,
-  created_at   TEXT
+-- ── REMINDERS ──────────────────────────────────────────
+create table public.reminders (
+  id           text        primary key,
+  user_id      uuid        references auth.users not null,
+  title        text        not null default '',
+  notes        text        default '',
+  date         text        default '',
+  dismissed    boolean     default false,
+  dismissed_at text        default '',
+  task_id      text        default '',
+  created_at   timestamptz default now()
 );
+alter table public.reminders enable row level security;
+create policy "reminders_own" on public.reminders
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- SETTINGS  (BU list, etc.)
-CREATE TABLE IF NOT EXISTS settings (
-  key      TEXT,
-  user_id  UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  value    JSONB,
-  PRIMARY KEY (key, user_id)
+-- ── SETTINGS ───────────────────────────────────────────
+create table public.settings (
+  id         uuid        default gen_random_uuid() primary key,
+  user_id    uuid        references auth.users not null,
+  key        text        not null,
+  value      jsonb,
+  created_at timestamptz default now(),
+  unique(user_id, key)
 );
-
--- ── Row Level Security ────────────────────────
-ALTER TABLE tasks     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE todos     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE settings  ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "own tasks"     ON tasks     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "own todos"     ON todos     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "own reminders" ON reminders FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "own settings"  ON settings  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+alter table public.settings enable row level security;
+create policy "settings_own" on public.settings
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
