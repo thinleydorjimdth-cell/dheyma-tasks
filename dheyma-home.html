@@ -6,244 +6,748 @@
 <meta name="theme-color" content="#0f1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Dheyma — Home</title>
+<title>Dheyma — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #222636;
-    --border: #2e3348;
-    --accent: #6366f1;
-    --accent2: #818cf8;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222636;
+    --border: #2e3348; --accent: #6366f1; --accent2: #818cf8;
+    --text: #e2e8f0; --muted: #94a3b8;
+    --critical: #ef4444; --high: #f97316; --medium: #eab308; --low: #22c55e;
+    --gold: #c9a84c;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg); color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    min-height: 100vh; display: flex; flex-direction: column;
-  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
 
   /* ── HEADER ── */
   header {
-    padding: 20px 40px; display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 32px; height: 62px; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 100;
   }
-  .logo-wrap { display: flex; align-items: center; gap: 12px; }
-  .logo-text { font-size: 1.3rem; font-weight: 800; letter-spacing: .3px; }
-  .date-tag  { font-size: .8rem; color: var(--muted); }
+  .logo-row { display: flex; align-items: center; gap: 12px; }
+  .logo-row img { height: 34px; width: auto; }
+  .page-tag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); background: #6366f120; border: 1px solid #6366f140; border-radius: 99px; padding: 3px 10px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .date-badge { font-size: .8rem; color: var(--muted); }
+  #userBadge { font-size: .78rem; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rolePill { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 2px 9px; border-radius: 99px; }
+  .pill-ceo      { background: #c9a84c20; color: var(--gold); border: 1px solid #c9a84c50; }
+  .pill-unit_head{ background: #6366f120; color: var(--accent2); border: 1px solid #6366f140; }
+  .pill-team     { background: #64748b20; color: var(--muted); border: 1px solid #64748b40; }
+  .btn { padding: 7px 15px; border-radius: 8px; border: none; cursor: pointer; font-size: .82rem; font-weight: 600; transition: .15s; font-family: inherit; }
+  .btn-ghost  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover  { background: var(--surface2); color: var(--text); }
+  .btn-danger { background: transparent; color: var(--critical); border: 1px solid #ef444430; }
+  .btn-danger:hover { background: #ef444415; }
 
-  /* ── HERO ── */
-  .hero {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 60px 40px 40px; text-align: center;
-  }
+  /* ── PAGE ── */
+  .page { max-width: 1400px; margin: 0 auto; padding: 28px 32px; }
 
-  /* ── ANIMATED LOGO ── */
-  .logo-glyph {
-    margin-bottom: 32px; position: relative;
-  }
-  .logo-glyph svg { filter: drop-shadow(0 0 32px #6366f155); animation: float 4s ease-in-out infinite; }
-  @keyframes float {
-    0%,100% { transform: translateY(0); }
-    50%      { transform: translateY(-8px); }
-  }
-  .logo-ring {
-    position: absolute; inset: -16px; border-radius: 50%;
-    border: 1px solid #6366f130;
-    animation: spin 12s linear infinite;
-  }
-  .logo-ring::after {
-    content: ''; position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
-    width: 6px; height: 6px; background: var(--accent2); border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent2);
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  /* ── GREETING ── */
+  .greeting { margin-bottom: 28px; }
+  .greeting h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 4px; }
+  .greeting p  { color: var(--muted); font-size: .9rem; }
 
-  .hero-title {
-    font-size: 2.8rem; font-weight: 800; letter-spacing: -.5px;
-    background: linear-gradient(135deg, #e2e8f0 30%, #818cf8 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text; margin-bottom: 14px;
-  }
-  .hero-sub {
-    font-size: 1rem; color: var(--muted); max-width: 460px; line-height: 1.7;
-    margin-bottom: 48px;
-  }
+  /* ── ALERT BANNER (overdue) ── */
+  #alertBanner { display: none; background: #ef444412; border: 1px solid #ef444435; border-radius: 12px; padding: 12px 18px; margin-bottom: 22px; display: flex; align-items: center; gap: 12px; }
+  #alertBanner.hidden { display: none !important; }
+  .ab-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .ab-text { flex: 1; font-size: .875rem; }
+  .ab-text strong { color: var(--critical); }
+  .ab-link { font-size: .8rem; color: var(--accent2); text-decoration: underline; cursor: pointer; white-space: nowrap; }
 
-  /* ── MODULE GRID ── */
-  .modules {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px; width: 100%; max-width: 960px; margin: 0 auto;
+  /* ── TOP STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; position: relative; overflow: hidden; }
+  .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; }
+  .sc-total::after    { background: var(--accent); }
+  .sc-critical::after { background: var(--critical); }
+  .sc-inprog::after   { background: var(--high); }
+  .sc-done::after     { background: var(--low); }
+  .sc-overdue::after  { background: var(--critical); }
+  .sc-delegated::after{ background: var(--medium); }
+  .stat-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+  .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .sc-total .stat-value    { color: var(--accent2); }
+  .sc-critical .stat-value { color: var(--critical); }
+  .sc-inprog .stat-value   { color: var(--high); }
+  .sc-done .stat-value     { color: var(--low); }
+  .sc-overdue .stat-value  { color: var(--critical); }
+  .sc-delegated .stat-value{ color: var(--medium); }
+  .stat-sub { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── TWO-COLUMN LAYOUT ── */
+  .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 22px; }
+
+  /* ── SECTION CARD ── */
+  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; margin-bottom: 20px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .section-title { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .section-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .section-link { font-size: .78rem; color: var(--accent2); cursor: pointer; text-decoration: none; }
+  .section-link:hover { text-decoration: underline; }
+
+  /* ── TODAY'S FOCUS ── */
+  .focus-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 14px; border-radius: 10px; margin-bottom: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    cursor: pointer; transition: border-color .15s;
   }
+  .focus-item:hover { border-color: var(--accent); }
+  .focus-item:last-child { margin-bottom: 0; }
+  .fi-pri { width: 4px; border-radius: 99px; align-self: stretch; flex-shrink: 0; min-height: 36px; }
+  .fi-body { flex: 1; min-width: 0; }
+  .fi-title { font-size: .875rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fi-meta  { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 5px; }
+  .fi-type  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: .71rem; font-weight: 600; white-space: nowrap; }
+  .b-critical { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
+  .b-high     { background: #f9731620; color: var(--high);     border: 1px solid #f9731640; }
+  .b-medium   { background: #eab30820; color: var(--medium);   border: 1px solid #eab30840; }
+  .b-low      { background: #22c55e20; color: var(--low);      border: 1px solid #22c55e40; }
+  .b-unit     { background: var(--surface2); color: var(--accent2); border: 1px solid #6366f130; }
+  .b-overdue  { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
+  .b-today    { background: #f9731620; color: var(--high);     border: 1px solid #f9731640; }
+  .b-type     { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .fi-done-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 7px; padding: 4px 10px; font-size: .72rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: inherit;
+    transition: .15s;
+  }
+  .fi-done-btn:hover { background: #22c55e20; color: var(--low); border-color: #22c55e50; }
+  .empty-focus { text-align: center; padding: 30px 0; color: var(--muted); font-size: .875rem; }
+  .empty-focus .ei { font-size: 2rem; margin-bottom: 8px; }
+
+  /* ── BU PROGRESS ── */
+  .bu-row { margin-bottom: 12px; }
+  .bu-row:last-child { margin-bottom: 0; }
+  .bu-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: .82rem; }
+  .bu-name { font-weight: 600; }
+  .bu-counts { color: var(--muted); font-size: .75rem; }
+  .bu-track { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .bu-fill  { height: 100%; border-radius: 99px; background: var(--accent); transition: width .6s ease; }
+  .bu-fill.has-critical { background: var(--critical); }
+
+  /* ── DELEGATION PANEL ── */
+  .del-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px;
+  }
+  .del-avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .del-body { flex: 1; min-width: 0; }
+  .del-name { font-size: .875rem; font-weight: 600; }
+  .del-task { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .del-status { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .ds-pending    { background: #eab30820; color: var(--medium); border: 1px solid #eab30840; }
+  .ds-inprog     { background: #6366f120; color: var(--accent2); border: 1px solid #6366f140; }
+  .ds-completed  { background: #22c55e20; color: var(--low); border: 1px solid #22c55e40; }
+  .ds-rejected   { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
+
+  /* ── UPCOMING REMINDERS ── */
+  .rem-item { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .rem-item:last-child { border-bottom: none; }
+  .rem-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .rem-body { flex: 1; }
+  .rem-title { font-size: .875rem; font-weight: 500; }
+  .rem-date  { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+  /* ── MODULES GRID ── */
+  .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
   .module-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 28px 24px; cursor: pointer; text-decoration: none; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 18px; cursor: pointer; text-decoration: none; color: var(--text);
     transition: transform .2s, border-color .2s, box-shadow .2s;
-    display: flex; flex-direction: column; gap: 12px;
-    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden;
   }
   .module-card::before {
-    content: ''; position: absolute; inset: 0; opacity: 0;
-    transition: opacity .2s;
+    content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity .2s;
     background: radial-gradient(circle at 50% 0%, var(--card-glow, #6366f120) 0%, transparent 70%);
   }
-  .module-card:hover { transform: translateY(-4px); border-color: var(--card-border, #6366f160); box-shadow: 0 12px 40px #0005; }
+  .module-card:hover { transform: translateY(-3px); border-color: var(--card-border, #6366f160); box-shadow: 0 10px 30px #0005; }
   .module-card:hover::before { opacity: 1; }
-  .module-card.disabled { cursor: default; opacity: .5; pointer-events: none; }
-
-  .mc-icon {
-    width: 48px; height: 48px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.5rem; flex-shrink: 0;
-  }
-  .mc-name   { font-size: 1rem; font-weight: 700; }
-  .mc-desc   { font-size: .8rem; color: var(--muted); line-height: 1.5; }
-  .mc-badge  {
-    display: inline-flex; align-items: center;
-    font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
-    padding: 2px 8px; border-radius: 99px; align-self: flex-start; margin-top: auto;
-  }
+  .module-card.disabled { opacity: .45; cursor: default; pointer-events: none; }
+  .mc-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+  .mc-name { font-size: .95rem; font-weight: 700; }
+  .mc-desc { font-size: .75rem; color: var(--muted); line-height: 1.5; }
+  .mc-badge { display: inline-flex; align-items: center; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 2px 7px; border-radius: 99px; align-self: flex-start; margin-top: auto; }
   .badge-live    { background: #22c55e20; color: #22c55e; border: 1px solid #22c55e40; }
   .badge-soon    { background: #eab30820; color: #eab308; border: 1px solid #eab30840; }
   .badge-planned { background: #64748b20; color: #94a3b8; border: 1px solid #64748b40; }
+  .mc-tasks   { --card-glow:#6366f120; --card-border:#6366f170; }
+  .mc-team    { --card-glow:#f9731620; --card-border:#f9731660; }
+  .mc-finance { --card-glow:#22c55e20; --card-border:#22c55e60; }
+  .mc-reports { --card-glow:#eab30820; --card-border:#eab30860; }
+  .mc-cal     { --card-glow:#818cf820; --card-border:#818cf870; }
+  .mc-docs    { --card-glow:#e879f920; --card-border:#e879f960; }
 
-  /* card accent colours */
-  .mc-tasks      { --card-glow: #6366f120; --card-border: #6366f170; }
-  .mc-finance    { --card-glow: #22c55e20; --card-border: #22c55e60; }
-  .mc-people     { --card-glow: #f9731620; --card-border: #f9731660; }
-  .mc-reports    { --card-glow: #eab30820; --card-border: #eab30860; }
-  .mc-calendar   { --card-glow: #818cf820; --card-border: #818cf870; }
-  .mc-docs       { --card-glow: #e879f920; --card-border: #e879f960; }
+  /* ── WHATSAPP SETUP CARD ── */
+  #waSetupCard { background: #22c55e10; border: 1px solid #22c55e35; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
+  .wa-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .wa-body { flex: 1; }
+  .wa-body strong { font-size: .875rem; color: var(--low); }
+  .wa-body p { font-size: .78rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  #waSetupCard button { background: #22c55e; color: #fff; border: none; border-radius: 8px; padding: 7px 14px; font-size: .8rem; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+
+  /* ── SKELETON ── */
+  .skel { background: var(--surface2); border-radius: 8px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
 
   /* ── FOOTER ── */
-  footer {
-    padding: 20px 40px; border-top: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: .78rem; color: var(--muted);
-  }
-  footer a { color: var(--muted); text-decoration: none; }
-  footer a:hover { color: var(--text); }
+  footer { border-top: 1px solid var(--border); padding: 18px 32px; display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
 
-  /* ── GLOW BG ── */
-  .bg-glow {
-    position: fixed; pointer-events: none; z-index: 0;
-    width: 600px; height: 600px; border-radius: 50%;
-    background: radial-gradient(circle, #6366f115 0%, transparent 70%);
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
-  }
-  .container { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+  /* ── PROFILE MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: #00000085; z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; width: 420px; max-width: 96vw; padding: 28px; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .modal-title { font-size: 1rem; font-weight: 800; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .form-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+  .form-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 13px; color: var(--text); font-size: .875rem; outline: none; width: 100%; font-family: inherit; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-note { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
 
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
   @media (max-width: 768px) {
-    header { padding: 14px 20px; }
-    .hero { padding: 32px 20px 28px; }
-    .hero-title { font-size: 2rem; }
-    .hero-sub { font-size: .9rem; margin-bottom: 32px; }
-    .modules { grid-template-columns: 1fr 1fr; gap: 12px; }
-    .module-card { padding: 20px 16px; }
-    .mc-icon { width: 40px; height: 40px; font-size: 1.25rem; }
-    .mc-name { font-size: .9rem; }
-    .mc-desc { font-size: .75rem; }
-    footer { flex-direction: column; gap: 4px; text-align: center; padding: 16px 20px; }
+    header { padding: 0 16px; }
+    .page { padding: 18px 16px; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stat-value { font-size: 1.6rem; }
+    .greeting h1 { font-size: 1.3rem; }
+    footer { padding: 14px 16px; }
+    #userBadge { display: none; }
   }
-
   @media (max-width: 480px) {
-    .hero-title { font-size: 1.7rem; }
-    .logo-glyph img { height: 120px !important; }
-    .logo-glyph > div { padding: 20px 24px !important; }
-    .modules { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .module-card { padding: 16px 14px; border-radius: 12px; }
-    header { padding: 12px 16px; }
-    /* prevent iOS zoom on inputs (none on home but good practice) */
-    input, select, textarea { font-size: 16px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .modules { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
 <body>
 
-<div class="bg-glow"></div>
+<header>
+  <div class="logo-row">
+    <img src="Dheyma - Primary Gold.png" alt="Dheyma">
+    <span class="page-tag">Dashboard</span>
+  </div>
+  <div class="header-right">
+    <span class="date-badge" id="headerDate"></span>
+    <span id="rolePill" class="pill-ceo" style="display:none;"></span>
+    <span id="userBadge"></span>
+    <button class="btn btn-ghost" onclick="openProfileModal()" title="My Profile">⚙ Profile</button>
+    <button class="btn btn-danger" onclick="doSignOut()" title="Sign out">⏻</button>
+  </div>
+</header>
 
-<div class="container">
-  <header>
-    <div class="logo-wrap">
-      <div style="display:flex;align-items:center;height:42px;">
-        <img src="Dheyma - Primary Gold.png" style="height:36px;width:auto;display:block;" alt="Dheyma">
-      </div>
-    </div>
-    <span class="date-tag" id="homeDate"></span>
-  </header>
+<div class="page">
 
-  <div class="hero">
-    <!-- Real Dheyma logo -->
-    <div class="logo-glyph" style="margin-bottom:36px;">
-      <div style="border-radius:20px;padding:28px 36px;box-shadow:0 0 80px #c9a84c40, 0 8px 40px #0006;animation:float 4s ease-in-out infinite;">
-        <img src="Dheyma - Primary Gold.png" style="height:180px;width:auto;display:block;" alt="Dheyma">
-      </div>
-    </div>
-
-    <h1 class="hero-title">Welcome back, CEO</h1>
-    <p class="hero-sub">Your Dheyma command centre. Manage tasks, track priorities, and keep all business units aligned — in one place.</p>
-
-    <!-- Module cards -->
-    <div class="modules">
-
-      <a href="dheyma-tasks.html" class="module-card mc-tasks">
-        <div class="mc-icon" style="background:#6366f120;">📋</div>
-        <div class="mc-name">Task Manager</div>
-        <div class="mc-desc">Priorities, deadlines, reminders, to-dos and board views across all BUs.</div>
-        <span class="mc-badge badge-live">● Live</span>
-      </a>
-
-      <div class="module-card mc-finance disabled">
-        <div class="mc-icon" style="background:#22c55e20;">💰</div>
-        <div class="mc-name">Finance</div>
-        <div class="mc-desc">P&L snapshots, budget tracking and approval workflows.</div>
-        <span class="mc-badge badge-soon">Coming Soon</span>
-      </div>
-
-      <div class="module-card mc-people disabled">
-        <div class="mc-icon" style="background:#f9731620;">👥</div>
-        <div class="mc-name">People</div>
-        <div class="mc-desc">HR, org chart, hiring pipeline and performance reviews.</div>
-        <span class="mc-badge badge-soon">Coming Soon</span>
-      </div>
-
-      <div class="module-card mc-reports disabled">
-        <div class="mc-icon" style="background:#eab30820;">📊</div>
-        <div class="mc-name">Reports</div>
-        <div class="mc-desc">Executive dashboards and BU-level KPI tracking.</div>
-        <span class="mc-badge badge-planned">Planned</span>
-      </div>
-
-      <div class="module-card mc-calendar disabled">
-        <div class="mc-icon" style="background:#818cf820;">🗓</div>
-        <div class="mc-name">Calendar</div>
-        <div class="mc-desc">Meetings, deadlines and cross-BU scheduling.</div>
-        <span class="mc-badge badge-planned">Planned</span>
-      </div>
-
-      <div class="module-card mc-docs disabled">
-        <div class="mc-icon" style="background:#e879f920;">📁</div>
-        <div class="mc-name">Documents</div>
-        <div class="mc-desc">Contracts, MoUs, approvals and shared files.</div>
-        <span class="mc-badge badge-planned">Planned</span>
-      </div>
-
-    </div>
+  <!-- Alert banner for overdue -->
+  <div id="alertBanner" class="hidden">
+    <span class="ab-icon">🔴</span>
+    <span class="ab-text"><strong id="alertCount">0 overdue tasks</strong> need your attention.</span>
+    <a class="ab-link" href="dheyma-tasks.html">View All →</a>
   </div>
 
-  <footer>
-    <span>Dheyma Group &nbsp;·&nbsp; CEO Portal</span>
-    <span id="footerYear"></span>
-  </footer>
+  <!-- Greeting -->
+  <div class="greeting">
+    <h1 id="greetingText">Good morning, CEO</h1>
+    <p id="greetingSub">Loading your dashboard…</p>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card sc-total"><div class="stat-label">Total Active</div><div class="skel" style="height:36px;width:60px;margin:4px 0;"></div></div>
+    <div class="stat-card sc-critical"><div class="stat-label">Critical</div><div class="skel" style="height:36px;width:40px;margin:4px 0;"></div></div>
+    <div class="stat-card sc-inprog"><div class="stat-label">In Progress</div><div class="skel" style="height:36px;width:40px;margin:4px 0;"></div></div>
+    <div class="stat-card sc-done"><div class="stat-label">Done</div><div class="skel" style="height:36px;width:40px;margin:4px 0;"></div></div>
+    <div class="stat-card sc-overdue"><div class="stat-label">Overdue</div><div class="skel" style="height:36px;width:40px;margin:4px 0;"></div></div>
+    <div class="stat-card sc-delegated"><div class="stat-label">Delegated</div><div class="skel" style="height:36px;width:40px;margin:4px 0;"></div></div>
+  </div>
+
+  <!-- WhatsApp setup nudge (hidden if number already set) -->
+  <div id="waSetupCard" style="display:none;">
+    <span class="wa-icon">📱</span>
+    <div class="wa-body">
+      <strong>Set up WhatsApp Reminders</strong>
+      <p>Add your WhatsApp number to receive deadline alerts and daily digests on your phone.</p>
+    </div>
+    <button onclick="openProfileModal()">Set Up →</button>
+  </div>
+
+  <div class="main-grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <!-- Today's Focus -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--high);"></span>
+            Today's Focus
+          </div>
+          <a href="dheyma-tasks.html" class="section-link">All Tasks →</a>
+        </div>
+        <div id="focusList"><div class="empty-focus"><div class="ei">⏳</div>Loading…</div></div>
+      </div>
+
+      <!-- BU Progress -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--accent);"></span>
+            Business Unit Progress
+          </div>
+          <a href="dheyma-tasks.html" class="section-link">Details →</a>
+        </div>
+        <div id="buProgress"><div class="skel" style="height:14px;margin-bottom:12px;"></div></div>
+      </div>
+
+      <!-- App Modules -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-header" style="margin-bottom:16px;">
+          <div class="section-title">
+            <span class="dot" style="background:var(--accent2);"></span>
+            Modules
+          </div>
+        </div>
+        <div class="modules">
+          <a href="dheyma-tasks.html" class="module-card mc-tasks">
+            <div class="mc-icon" style="background:#6366f120;">📋</div>
+            <div class="mc-name">Task Manager</div>
+            <div class="mc-desc">Priorities, deadlines, board views across all BUs.</div>
+            <span class="mc-badge badge-live">● Live</span>
+          </a>
+          <a href="dheyma-team.html" class="module-card mc-team">
+            <div class="mc-icon" style="background:#f9731620;">👥</div>
+            <div class="mc-name">Team</div>
+            <div class="mc-desc">Manage team roles, BU access, and delegations.</div>
+            <span class="mc-badge badge-live">● Live</span>
+          </a>
+          <div class="module-card mc-finance disabled">
+            <div class="mc-icon" style="background:#22c55e20;">💰</div>
+            <div class="mc-name">Finance</div>
+            <div class="mc-desc">P&amp;L snapshots, budgets, approvals.</div>
+            <span class="mc-badge badge-soon">Coming Soon</span>
+          </div>
+          <div class="module-card mc-reports disabled">
+            <div class="mc-icon" style="background:#eab30820;">📊</div>
+            <div class="mc-name">Reports</div>
+            <div class="mc-desc">Executive dashboards and KPI tracking.</div>
+            <span class="mc-badge badge-planned">Planned</span>
+          </div>
+          <div class="module-card mc-cal disabled">
+            <div class="mc-icon" style="background:#818cf820;">🗓</div>
+            <div class="mc-name">Calendar</div>
+            <div class="mc-desc">Meetings, deadlines, cross-BU scheduling.</div>
+            <span class="mc-badge badge-planned">Planned</span>
+          </div>
+          <div class="module-card mc-docs disabled">
+            <div class="mc-icon" style="background:#e879f920;">📁</div>
+            <div class="mc-name">Documents</div>
+            <div class="mc-desc">Contracts, MoUs, approvals, shared files.</div>
+            <span class="mc-badge badge-planned">Planned</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <!-- Delegations -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--medium);"></span>
+            Active Delegations
+          </div>
+          <a href="dheyma-team.html" class="section-link">View Team →</a>
+        </div>
+        <div id="delegationList"><div class="skel" style="height:50px;border-radius:10px;"></div></div>
+      </div>
+
+      <!-- Upcoming Reminders -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--accent2);"></span>
+            Upcoming Reminders
+          </div>
+          <a href="dheyma-tasks.html#reminders" class="section-link">All →</a>
+        </div>
+        <div id="reminderList"><div class="skel" style="height:14px;margin-bottom:8px;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>Dheyma Group &nbsp;·&nbsp; CEO Portal</span>
+  <span id="footerYear"></span>
+</footer>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfileModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">My Profile &amp; Settings</span>
+      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input type="text" class="form-input" id="pf_name" placeholder="Your full name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">WhatsApp Number</label>
+      <input type="text" class="form-input" id="pf_wa" placeholder="+975 17 123 456">
+      <div class="form-note">Include country code. Used for task reminders &amp; alerts.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <input type="text" class="form-input" id="pf_role" disabled style="opacity:.5;">
+    </div>
+    <div class="form-group" id="pf_buGroup" style="display:none;">
+      <label class="form-label">Assigned Business Unit</label>
+      <input type="text" class="form-input" id="pf_bu" disabled style="opacity:.5;">
+    </div>
+    <div class="form-note" style="margin-bottom:16px;padding:10px 13px;background:var(--surface2);border-radius:8px;line-height:1.6;">
+      💡 <strong>WhatsApp reminders</strong> require a Twilio account + backend setup. Contact your system administrator to enable automated alerts.
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeProfileModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
 </div>
 
 <script>
+const SUPABASE_URL = 'https://zwywjfkivljkifmhifdc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qdeTQAldycJUMXnlcEkA5A_RNGkEa4F';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let allTasks = [];
+let allReminders = [];
+
+// ── INIT ──────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user) { window.location.href = 'dheyma-login.html'; return; }
+  currentUser = session.user;
+  setDate();
+  await loadProfile();
+  await loadDashboard();
+})();
+
+function setDate() {
   const d = new Date();
-  document.getElementById('homeDate').textContent =
-    d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  document.getElementById('headerDate').textContent =
+    d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
   document.getElementById('footerYear').textContent = '© ' + d.getFullYear() + ' Dheyma Group';
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  currentProfile = data || { role: 'team', full_name: currentUser.email.split('@')[0], whatsapp: '', business_unit: '' };
+
+  const name = currentProfile.full_name || currentUser.email.split('@')[0];
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greetingText').textContent = `${greet}, ${name}`;
+
+  const rolePill = document.getElementById('rolePill');
+  const roleLabel = { ceo: '👑 CEO', unit_head: '🏢 Unit Head', team: '👤 Team' }[currentProfile.role] || '👤 Team';
+  rolePill.textContent = roleLabel;
+  rolePill.className = `pill-${currentProfile.role || 'team'}`;
+  rolePill.style.display = 'inline-flex';
+
+  document.getElementById('userBadge').textContent = name;
+
+  if (!currentProfile.whatsapp) {
+    document.getElementById('waSetupCard').style.display = 'flex';
+  }
+}
+
+async function loadDashboard() {
+  // Load tasks
+  const { data: taskData, error } = await sb.from('tasks').select('*').order('due', { ascending: true });
+  if (error) { console.error(error); return; }
+  allTasks = taskData || [];
+
+  // Load reminders
+  const { data: remData } = await sb.from('reminders')
+    .select('*').eq('dismissed', false).order('date', { ascending: true }).limit(20);
+  allReminders = remData || [];
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+
+  const active    = allTasks.filter(t => t.status !== 'Done');
+  const critical  = active.filter(t => t.priority === 'Critical');
+  const inprog    = active.filter(t => t.status === 'In Progress');
+  const done      = allTasks.filter(t => t.status === 'Done');
+  const overdue   = active.filter(t => t.due && t.due < todayStr);
+  const delegated = active.filter(t => t.delegated_to_id);
+
+  // Stats
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card sc-total">
+      <div class="stat-label">Total Active</div>
+      <div class="stat-value">${active.length}</div>
+      <div class="stat-sub">${allTasks.length} total tasks</div>
+    </div>
+    <div class="stat-card sc-critical">
+      <div class="stat-label">Critical</div>
+      <div class="stat-value">${critical.length}</div>
+      <div class="stat-sub">Need immediate action</div>
+    </div>
+    <div class="stat-card sc-inprog">
+      <div class="stat-label">In Progress</div>
+      <div class="stat-value">${inprog.length}</div>
+      <div class="stat-sub">Currently running</div>
+    </div>
+    <div class="stat-card sc-done">
+      <div class="stat-label">Done</div>
+      <div class="stat-value">${done.length}</div>
+      <div class="stat-sub">Completed tasks</div>
+    </div>
+    <div class="stat-card sc-overdue">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-value">${overdue.length}</div>
+      <div class="stat-sub">Past deadline</div>
+    </div>
+    <div class="stat-card sc-delegated">
+      <div class="stat-label">Delegated</div>
+      <div class="stat-value">${delegated.length}</div>
+      <div class="stat-sub">Awaiting team</div>
+    </div>
+  `;
+
+  // Alert banner
+  if (overdue.length > 0) {
+    const b = document.getElementById('alertBanner');
+    b.classList.remove('hidden');
+    document.getElementById('alertCount').textContent = `${overdue.length} overdue task${overdue.length > 1 ? 's' : ''}`;
+  }
+
+  // Greeting sub
+  document.getElementById('greetingSub').textContent =
+    `${active.length} active tasks across ${[...new Set(active.map(t => t.unit).filter(Boolean))].length} business units.`;
+
+  renderFocus(active, todayStr, today);
+  renderBUProgress(allTasks);
+  renderDelegations(delegated);
+  renderReminders();
+}
+
+function dueDiff(dueStr) {
+  if (!dueStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dueStr + 'T00:00:00');
+  return Math.round((d - today) / 86400000);
+}
+
+function priorityColor(p) {
+  return { Critical: 'var(--critical)', High: 'var(--high)', Medium: 'var(--medium)', Low: 'var(--low)' }[p] || 'var(--muted)';
+}
+function priorityBadge(p) {
+  const cls = { Critical:'b-critical', High:'b-high', Medium:'b-medium', Low:'b-low' }[p] || 'b-low';
+  return `<span class="badge ${cls}">${p}</span>`;
+}
+
+function renderFocus(active, todayStr, today) {
+  const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().slice(0,10);
+  const in3dStr     = new Date(today.getTime() + 3*86400000).toISOString().slice(0,10);
+
+  const focus = active
+    .filter(t => t.due && t.due <= in3dStr || t.priority === 'Critical')
+    .sort((a,b) => {
+      const priOrd = {Critical:0, High:1, Medium:2, Low:3};
+      const dA = a.due || '9999'; const dB = b.due || '9999';
+      if (dA !== dB) return dA < dB ? -1 : 1;
+      return (priOrd[a.priority]??9) - (priOrd[b.priority]??9);
+    })
+    .slice(0, 8);
+
+  if (focus.length === 0) {
+    document.getElementById('focusList').innerHTML = `
+      <div class="empty-focus">
+        <div class="ei">✅</div>
+        <div>No urgent tasks for today. You're on top of things!</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('focusList').innerHTML = focus.map(t => {
+    const diff = dueDiff(t.due);
+    let dueBadge = '';
+    if (diff !== null) {
+      if (diff < 0)  dueBadge = `<span class="badge b-overdue">Overdue ${Math.abs(diff)}d</span>`;
+      else if (diff === 0) dueBadge = `<span class="badge b-today">Due Today</span>`;
+      else dueBadge = `<span class="badge b-medium">Due in ${diff}d</span>`;
+    }
+    const typeBadge = t.task_type && t.task_type !== 'Task'
+      ? `<span class="badge b-type">${esc(t.task_type)}</span>` : '';
+    const unitBadge = t.unit ? `<span class="badge b-unit">${esc(t.unit)}</span>` : '';
+
+    return `<div class="focus-item" onclick="window.location='dheyma-tasks.html'">
+      <div class="fi-pri" style="background:${priorityColor(t.priority)};"></div>
+      <div class="fi-body">
+        <div class="fi-title">${esc(t.title)}</div>
+        <div class="fi-meta">${priorityBadge(t.priority)}${unitBadge}${dueBadge}${typeBadge}</div>
+      </div>
+      <button class="fi-done-btn" onclick="event.stopPropagation();markDone('${t.id}')" title="Mark as done">✓ Done</button>
+    </div>`;
+  }).join('');
+}
+
+async function markDone(id) {
+  const t = allTasks.find(x => x.id === id);
+  if (!t) return;
+  await sb.from('tasks').update({ status: 'Done' }).eq('id', id);
+  await loadDashboard();
+}
+
+function renderBUProgress(allTasks) {
+  const buMap = {};
+  allTasks.forEach(t => {
+    if (!t.unit) return;
+    if (!buMap[t.unit]) buMap[t.unit] = { total: 0, done: 0, critical: 0 };
+    buMap[t.unit].total++;
+    if (t.status === 'Done') buMap[t.unit].done++;
+    if (t.priority === 'Critical' && t.status !== 'Done') buMap[t.unit].critical++;
+  });
+  const sorted = Object.entries(buMap).sort((a,b) => b[1].total - a[1].total);
+  if (sorted.length === 0) {
+    document.getElementById('buProgress').innerHTML = `<p style="color:var(--muted);font-size:.82rem;">No tasks yet.</p>`;
+    return;
+  }
+  document.getElementById('buProgress').innerHTML = sorted.map(([bu, d]) => {
+    const pct = d.total ? Math.round(d.done / d.total * 100) : 0;
+    const hasCrit = d.critical > 0;
+    return `<div class="bu-row">
+      <div class="bu-meta">
+        <span class="bu-name">${esc(bu)}</span>
+        <span class="bu-counts">${d.done}/${d.total} done${d.critical ? ` · <span style="color:var(--critical)">${d.critical} critical</span>` : ''}</span>
+      </div>
+      <div class="bu-track">
+        <div class="bu-fill ${hasCrit ? 'has-critical' : ''}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDelegations(delegated) {
+  if (delegated.length === 0) {
+    document.getElementById('delegationList').innerHTML =
+      `<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:12px 0;">No active delegations.</p>`;
+    return;
+  }
+  const shown = delegated.slice(0, 5);
+  document.getElementById('delegationList').innerHTML = shown.map(t => {
+    const name = t.delegated_to_name || t.delegated_to_email || 'Team Member';
+    const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const statusCls = {
+      Pending: 'ds-pending', Accepted: 'ds-inprog', 'In Progress': 'ds-inprog',
+      Completed: 'ds-completed', Rejected: 'ds-rejected'
+    }[t.delegation_status] || 'ds-pending';
+    const status = t.delegation_status || 'Pending';
+    return `<div class="del-item">
+      <div class="del-avatar">${initials}</div>
+      <div class="del-body">
+        <div class="del-name">${esc(name)}</div>
+        <div class="del-task">${esc(t.title)}</div>
+      </div>
+      <span class="del-status ${statusCls}">${status}</span>
+    </div>`;
+  }).join('');
+  if (delegated.length > 5) {
+    document.getElementById('delegationList').innerHTML +=
+      `<a href="dheyma-team.html" style="display:block;text-align:center;font-size:.78rem;color:var(--accent2);padding:8px 0;text-decoration:none;">+${delegated.length-5} more →</a>`;
+  }
+}
+
+function renderReminders() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  const upcoming = allReminders
+    .filter(r => !r.dismissed && r.date >= todayStr)
+    .slice(0, 6);
+
+  if (upcoming.length === 0) {
+    document.getElementById('reminderList').innerHTML =
+      `<p style="color:var(--muted);font-size:.82rem;">No upcoming reminders.</p>`;
+    return;
+  }
+  document.getElementById('reminderList').innerHTML = upcoming.map(r => {
+    const diff = dueDiff(r.date);
+    const label = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : `In ${diff} days`;
+    const dotColor = diff === 0 ? 'var(--critical)' : diff <= 2 ? 'var(--high)' : 'var(--accent2)';
+    return `<div class="rem-item">
+      <span class="rem-dot" style="background:${dotColor};"></span>
+      <div class="rem-body">
+        <div class="rem-title">${esc(r.title)}</div>
+        <div class="rem-date">${label} — ${r.date}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── PROFILE MODAL ─────────────────────────────────────────────────
+function openProfileModal() {
+  document.getElementById('pf_name').value = currentProfile?.full_name || '';
+  document.getElementById('pf_wa').value   = currentProfile?.whatsapp  || '';
+  document.getElementById('pf_role').value = currentProfile?.role      || 'team';
+  const buGroup = document.getElementById('pf_buGroup');
+  if (currentProfile?.role === 'unit_head') {
+    buGroup.style.display = 'flex';
+    document.getElementById('pf_bu').value = currentProfile?.business_unit || '';
+  } else {
+    buGroup.style.display = 'none';
+  }
+  document.getElementById('profileModal').classList.add('open');
+}
+function closeProfileModal() { document.getElementById('profileModal').classList.remove('open'); }
+
+async function saveProfile() {
+  const name = document.getElementById('pf_name').value.trim();
+  const wa   = document.getElementById('pf_wa').value.trim();
+  const { error } = await sb.from('profiles').upsert({
+    id: currentUser.id, full_name: name, whatsapp: wa
+  }, { onConflict: 'id' });
+  if (error) { alert('Save failed: ' + error.message); return; }
+  currentProfile = { ...currentProfile, full_name: name, whatsapp: wa };
+  if (wa) document.getElementById('waSetupCard').style.display = 'none';
+  closeProfileModal();
+  // refresh greeting
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greetingText').textContent = `${greet}, ${name || currentUser.email.split('@')[0]}`;
+}
+
+async function doSignOut() {
+  await sb.auth.signOut();
+  window.location.href = 'dheyma-login.html';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 </body>
 </html>
