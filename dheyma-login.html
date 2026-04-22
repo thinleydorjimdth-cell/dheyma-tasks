@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Dheyma — Sign In</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222636;
+    --border: #2e3348; --accent: #6366f1; --accent2: #818cf8;
+    --text: #e2e8f0; --muted: #94a3b8;
+    --critical: #ef4444; --high: #f97316; --medium: #eab308; --low: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .bg-glow {
+    position: fixed; pointer-events: none; z-index: 0;
+    width: 700px; height: 700px; border-radius: 50%;
+    background: radial-gradient(circle, #6366f118 0%, transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  .card {
+    position: relative; z-index: 1;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 44px 40px; width: 420px; max-width: 98vw;
+    box-shadow: 0 32px 80px #0009;
+  }
+  .logo-wrap {
+    text-align: center; margin-bottom: 30px;
+  }
+  .logo-wrap img { height: 72px; width: auto; }
+  .headline { font-size: 1.15rem; font-weight: 800; text-align: center; margin-bottom: 5px; }
+  .sub { color: var(--muted); font-size: .83rem; text-align: center; margin-bottom: 28px; line-height: 1.6; }
+
+  .tabs { display: flex; gap: 0; background: var(--surface2); border-radius: 10px; padding: 3px; margin-bottom: 24px; }
+  .tab { flex: 1; padding: 8px; text-align: center; cursor: pointer; border-radius: 8px; font-size: .85rem; font-weight: 600; color: var(--muted); transition: .15s; }
+  .tab.active { background: var(--accent); color: #fff; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+  input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 11px 14px; color: var(--text);
+    font-size: .9rem; outline: none; width: 100%; font-family: inherit;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  .msg { font-size: .8rem; min-height: 20px; margin: 2px 0 10px; padding: 0 2px; }
+  .msg.err  { color: var(--critical); }
+  .msg.ok   { color: var(--low); }
+  .btn {
+    width: 100%; padding: 12px; border: none; border-radius: 10px;
+    font-size: .9rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    transition: .15s; margin-bottom: 10px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
+  .note { font-size: .72rem; color: var(--muted); text-align: center; line-height: 1.5; margin-top: 4px; }
+
+  /* Welcome flash */
+  #welcomeFlash {
+    display: none; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin-top: 18px;
+  }
+  .flash-title { font-size: .85rem; font-weight: 700; margin-bottom: 10px; color: var(--accent2); }
+  .alert-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .82rem;
+  }
+  .alert-item:last-child { border-bottom: none; }
+  .a-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .a-overdue { background: var(--critical); }
+  .a-today   { background: var(--high); }
+  .a-soon    { background: var(--medium); }
+  .a-text { flex: 1; }
+  .a-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+
+  @media (max-width: 480px) {
+    .card { padding: 32px 20px; }
+    .logo-wrap img { height: 56px; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="card">
+  <div class="logo-wrap">
+    <img src="Dheyma - Primary Gold.png" alt="Dheyma">
+  </div>
+  <h1 class="headline">Dheyma CEO Portal</h1>
+  <p class="sub">Sign in to manage your business units, tasks, and team — across all devices.</p>
+
+  <div class="tabs">
+    <div class="tab active" id="tabSignIn" onclick="switchTab('signin')">Sign In</div>
+    <div class="tab" id="tabSignUp" onclick="switchTab('signup')">Create Account</div>
+  </div>
+
+  <!-- SIGN IN -->
+  <div id="panelSignin">
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="siEmail" placeholder="you@dheyma.bt" onkeydown="if(event.key==='Enter')doSignIn()">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="siPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignIn()">
+    </div>
+    <div class="msg err" id="siErr"></div>
+    <button class="btn btn-primary" onclick="doSignIn()" id="btnSignIn">Sign In</button>
+    <p class="note">Only authorised Dheyma users can access this portal.</p>
+  </div>
+
+  <!-- SIGN UP -->
+  <div id="panelSignup" style="display:none;">
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="suName" placeholder="Your full name">
+    </div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="suEmail" placeholder="you@dheyma.bt">
+    </div>
+    <div class="field">
+      <label>Password (min 6 characters)</label>
+      <input type="password" id="suPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignUp()">
+    </div>
+    <div class="msg" id="suMsg"></div>
+    <button class="btn btn-primary" onclick="doSignUp()" id="btnSignUp">Create Account</button>
+    <p class="note">After creating your account, an admin will assign your access level.</p>
+  </div>
+
+  <!-- Welcome flash shown briefly after login -->
+  <div id="welcomeFlash">
+    <div class="flash-title" id="flashTitle">Welcome back! Loading your dashboard…</div>
+    <div id="alertList"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zwywjfkivljkifmhifdc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qdeTQAldycJUMXnlcEkA5A_RNGkEa4F';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function switchTab(t) {
+  document.getElementById('panelSignin').style.display = t === 'signin' ? 'block' : 'none';
+  document.getElementById('panelSignup').style.display = t === 'signup' ? 'block' : 'none';
+  document.getElementById('tabSignIn').classList.toggle('active', t === 'signin');
+  document.getElementById('tabSignUp').classList.toggle('active', t === 'signup');
+}
+
+async function doSignIn() {
+  const email = document.getElementById('siEmail').value.trim();
+  const pass  = document.getElementById('siPass').value;
+  const err   = document.getElementById('siErr');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Please enter your email and password.'; return; }
+  document.getElementById('btnSignIn').textContent = 'Signing in…';
+  document.getElementById('btnSignIn').disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    err.textContent = error.message;
+    document.getElementById('btnSignIn').textContent = 'Sign In';
+    document.getElementById('btnSignIn').disabled = false;
+  }
+  // onAuthStateChange handles redirect
+}
+
+async function doSignUp() {
+  const name  = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass  = document.getElementById('suPass').value;
+  const msg   = document.getElementById('suMsg');
+  msg.className = 'msg'; msg.textContent = '';
+  if (!name || !email || !pass) { msg.className='msg err'; msg.textContent='All fields are required.'; return; }
+  if (pass.length < 6)          { msg.className='msg err'; msg.textContent='Password must be at least 6 characters.'; return; }
+  document.getElementById('btnSignUp').textContent = 'Creating…';
+  document.getElementById('btnSignUp').disabled = true;
+  const { error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { full_name: name } }
+  });
+  if (error) {
+    msg.className = 'msg err'; msg.textContent = error.message;
+  } else {
+    msg.className = 'msg ok';
+    msg.textContent = '✓ Account created! Check your email to confirm your address, then sign in.';
+  }
+  document.getElementById('btnSignUp').textContent = 'Create Account';
+  document.getElementById('btnSignUp').disabled = false;
+}
+
+function dueDateClass(due) {
+  if (!due) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d     = new Date(due + 'T00:00:00');
+  const diff  = Math.round((d - today) / 86400000);
+  if (diff < 0)  return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff <= 3)  return 'soon';
+  return null;
+}
+
+async function showWelcomeAlerts(user) {
+  const flash = document.getElementById('welcomeFlash');
+  const list  = document.getElementById('alertList');
+  const title = document.getElementById('flashTitle');
+
+  // get profile for name
+  const { data: prof } = await sb.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle();
+  const name = prof?.full_name || user.email.split('@')[0];
+  title.textContent = `Welcome back, ${name}! Checking your tasks…`;
+  flash.style.display = 'block';
+
+  // load tasks
+  const { data: taskData } = await sb.from('tasks')
+    .select('title, due, priority, unit, status')
+    .neq('status', 'Done')
+    .order('due', { ascending: true })
+    .limit(50);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const alerts = (taskData || [])
+    .map(t => ({ ...t, _cls: dueDateClass(t.due) }))
+    .filter(t => t._cls === 'overdue' || t._cls === 'today')
+    .slice(0, 6);
+
+  if (alerts.length === 0) {
+    list.innerHTML = `<div class="alert-item"><span class="a-text" style="color:var(--low)">✓ No overdue or due-today tasks. Have a great day!</span></div>`;
+  } else {
+    list.innerHTML = alerts.map(t => {
+      const dotCls = t._cls === 'overdue' ? 'a-overdue' : 'a-today';
+      const label  = t._cls === 'overdue' ? 'Overdue' : 'Due Today';
+      return `<div class="alert-item">
+        <span class="a-dot ${dotCls}"></span>
+        <div class="a-text">
+          <div>${t.title}</div>
+          <div class="a-meta">${t.unit ? t.unit + ' · ' : ''}${label} · ${t.priority}</div>
+        </div>
+      </div>`;
+    }).join('');
+    title.textContent = `Welcome back, ${name}! You have ${alerts.length} urgent item${alerts.length > 1 ? 's' : ''}.`;
+  }
+
+  // redirect after short delay
+  const dest = prof?.role === 'ceo' ? 'dheyma-home.html' : 'dheyma-tasks.html';
+  setTimeout(() => { window.location.href = dest; }, 2800);
+}
+
+// Listen for auth changes
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session?.user) {
+    await showWelcomeAlerts(session.user);
+  }
+});
+
+// If already logged in, redirect immediately
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    const { data: prof } = await sb.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+    window.location.href = prof?.role === 'ceo' ? 'dheyma-home.html' : 'dheyma-tasks.html';
+  }
+})();
+</script>
+</body>
+</html>

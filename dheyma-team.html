@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Dheyma — Team</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#222636;
+    --border:#2e3348; --accent:#6366f1; --accent2:#818cf8;
+    --text:#e2e8f0; --muted:#94a3b8;
+    --critical:#ef4444; --high:#f97316; --medium:#eab308; --low:#22c55e;
+    --gold:#c9a84c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+
+  /* ── HEADER ── */
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:62px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .logo-row{display:flex;align-items:center;gap:10px;}
+  .logo-row img{height:34px;width:auto;}
+  .page-tag{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--high);background:#f9731620;border:1px solid #f9731640;border-radius:99px;padding:3px 10px;}
+  .header-right{display:flex;align-items:center;gap:10px;}
+  .date-badge{font-size:.8rem;color:var(--muted);}
+  .btn{padding:7px 15px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;transition:.15s;font-family:inherit;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent2);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+  .btn-ghost:hover{background:var(--surface2);color:var(--text);}
+  .btn-danger{background:transparent;color:var(--critical);border:1px solid #ef444430;}
+  .btn-danger:hover{background:#ef444415;}
+  .btn-sm{padding:5px 12px;font-size:.78rem;}
+
+  /* ── LAYOUT ── */
+  .page{max-width:1300px;margin:0 auto;padding:28px 32px;}
+
+  /* ── STATS ── */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:28px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;}
+  .stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;}
+  .sc-members::after{background:var(--accent);}
+  .sc-units::after{background:var(--high);}
+  .sc-delegated::after{background:var(--medium);}
+  .sc-pending::after{background:var(--critical);}
+  .stat-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+  .stat-value{font-size:2rem;font-weight:800;line-height:1;}
+  .sc-members .stat-value{color:var(--accent2);}
+  .sc-units .stat-value{color:var(--high);}
+  .sc-delegated .stat-value{color:var(--medium);}
+  .sc-pending .stat-value{color:var(--critical);}
+
+  /* ── TWO-COL ── */
+  .grid2{display:grid;grid-template-columns:1fr 360px;gap:22px;}
+
+  /* ── SECTION CARD ── */
+  .section-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px 24px;margin-bottom:20px;}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .section-title{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .section-title .dot{width:8px;height:8px;border-radius:50%;}
+
+  /* ── MEMBER CARD ── */
+  .member-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:flex-start;gap:14px;transition:border-color .15s;}
+  .member-card:hover{border-color:#6366f150;}
+  .member-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:700;color:#fff;flex-shrink:0;}
+  .member-info{flex:1;min-width:0;}
+  .member-name{font-size:.95rem;font-weight:700;margin-bottom:4px;}
+  .member-email{font-size:.75rem;color:var(--muted);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .member-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .role-badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:.7rem;font-weight:700;white-space:nowrap;}
+  .rb-ceo      {background:#c9a84c20;color:var(--gold);   border:1px solid #c9a84c50;}
+  .rb-unit_head{background:#6366f120;color:var(--accent2);border:1px solid #6366f140;}
+  .rb-team     {background:#64748b20;color:var(--muted);  border:1px solid #64748b40;}
+  .bu-badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:.7rem;font-weight:600;background:var(--surface);color:var(--accent2);border:1px solid #6366f130;}
+  .task-count-badge{font-size:.72rem;color:var(--muted);padding:2px 8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;}
+  .member-actions{display:flex;gap:6px;flex-shrink:0;align-self:flex-start;}
+
+  /* ── DELEGATION TABLE ── */
+  .del-table{width:100%;border-collapse:collapse;}
+  .del-table th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--border);}
+  .del-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:.82rem;vertical-align:middle;}
+  .del-table tr:last-child td{border-bottom:none;}
+  .del-table tr:hover td{background:var(--surface2);}
+  .ds-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700;white-space:nowrap;}
+  .ds-pending  {background:#eab30820;color:var(--medium); border:1px solid #eab30840;}
+  .ds-accepted {background:#6366f120;color:var(--accent2);border:1px solid #6366f140;}
+  .ds-inprog   {background:#6366f120;color:var(--accent2);border:1px solid #6366f140;}
+  .ds-completed{background:#22c55e20;color:var(--low);    border:1px solid #22c55e40;}
+  .ds-rejected {background:#ef444420;color:var(--critical);border:1px solid #ef444440;}
+
+  /* ── ADD MEMBER CARD ── */
+  .add-member-form{background:var(--surface2);border:1px dashed var(--border);border-radius:12px;padding:18px 20px;}
+  .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);}
+  .form-input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.875rem;outline:none;width:100%;font-family:inherit;transition:border-color .15s;}
+  .form-input:focus{border-color:var(--accent);}
+  .form-select-s{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.875rem;outline:none;width:100%;font-family:inherit;}
+  .form-select-s:focus{border-color:var(--accent);}
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+
+  /* ── MODAL ── */
+  .modal-overlay{position:fixed;inset:0;background:#00000085;z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:460px;max-width:96vw;padding:28px;transform:translateY(16px);transition:transform .2s;}
+  .modal-overlay.open .modal{transform:translateY(0);}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .modal-title{font-size:1rem;font-weight:800;}
+  .modal-close{background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;padding:2px 6px;border-radius:6px;}
+  .modal-close:hover{color:var(--text);background:var(--surface2);}
+  .msg{font-size:.78rem;min-height:18px;padding:0 2px;margin-bottom:8px;}
+  .msg-err{color:var(--critical);}
+  .msg-ok{color:var(--low);}
+
+  /* ── EMPTY ── */
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:.875rem;}
+  .empty .ei{font-size:2.5rem;margin-bottom:10px;}
+
+  /* ── BU COLORS ── */
+  .av-0{background:#6366f1;} .av-1{background:#f97316;} .av-2{background:#22c55e;}
+  .av-3{background:#eab308;} .av-4{background:#818cf8;} .av-5{background:#e879f9;}
+  .av-6{background:#ef4444;} .av-7{background:#14b8a6;} .av-8{background:#c9a84c;}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:1000px){.grid2{grid-template-columns:1fr;}}
+  @media(max-width:768px){
+    header{padding:0 16px;}
+    .page{padding:18px 16px;}
+    .stats-row{grid-template-columns:repeat(2,1fr);}
+    .stat-value{font-size:1.6rem;}
+    .member-card{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <a href="dheyma-home.html" style="display:flex;align-items:center;"><img src="Dheyma - Primary Gold.png" alt="Dheyma"></a>
+    <span class="page-tag">Team</span>
+  </div>
+  <div class="header-right">
+    <span class="date-badge" id="headerDate"></span>
+    <span id="headerUser" style="font-size:.78rem;color:var(--muted);"></span>
+    <a href="dheyma-home.html" class="btn btn-ghost" style="text-decoration:none;">⌂ Dashboard</a>
+    <button class="btn btn-danger" onclick="doSignOut()">⏻</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card sc-members"><div class="stat-label">Team Members</div><div class="stat-value" id="stMembers">—</div></div>
+    <div class="stat-card sc-units"><div class="stat-label">Business Units</div><div class="stat-value" id="stUnits">—</div></div>
+    <div class="stat-card sc-delegated"><div class="stat-label">Active Delegations</div><div class="stat-value" id="stDelegated">—</div></div>
+    <div class="stat-card sc-pending"><div class="stat-label">Pending</div><div class="stat-value" id="stPending">—</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- LEFT: Member list -->
+    <div>
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--accent);"></span>
+            Team Members
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Member</button>
+        </div>
+        <div id="memberList"><div class="empty"><div class="ei">⏳</div>Loading…</div></div>
+      </div>
+
+      <!-- Delegation tracker -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--medium);"></span>
+            All Delegations
+          </div>
+          <a href="dheyma-tasks.html" style="font-size:.78rem;color:var(--accent2);text-decoration:none;">All Tasks →</a>
+        </div>
+        <div id="delegationList"><div class="empty" style="padding:20px;"><div class="ei">📤</div>Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Add member + BU breakdown -->
+    <div>
+      <div class="section-card">
+        <div class="section-title" style="margin-bottom:16px;">
+          <span class="dot" style="background:var(--high);"></span>
+          Quick Add Member
+        </div>
+        <div class="add-member-form">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" class="form-input" id="qm_name" placeholder="Team member's name">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" class="form-input" id="qm_email" placeholder="member@dheyma.bt">
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select class="form-select-s" id="qm_role">
+              <option value="team">Team Member</option>
+              <option value="unit_head">Unit Head</option>
+              <option value="ceo">CEO</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Business Unit</label>
+            <select class="form-select-s" id="qm_bu">
+              <option value="">— None —</option>
+            </select>
+          </div>
+          <div class="msg" id="qmMsg"></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" style="width:100%;" onclick="quickAddMember()">Invite &amp; Add</button>
+          </div>
+          <p style="font-size:.72rem;color:var(--muted);margin-top:10px;line-height:1.5;">The member will receive an invitation email to create their account. You can also update roles for existing users below.</p>
+        </div>
+      </div>
+
+      <!-- BU breakdown -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="dot" style="background:var(--low);"></span>
+            BU Breakdown
+          </div>
+        </div>
+        <div id="buBreakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Member Modal -->
+<div class="modal-overlay" id="editMemberModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Edit Team Member</span>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" class="form-input" id="em_name" placeholder="Full name">
+    </div>
+    <div class="form-group">
+      <label>WhatsApp Number</label>
+      <input type="text" class="form-input" id="em_wa" placeholder="+975 17 123 456">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select class="form-select-s" id="em_role" onchange="onEditRoleChange()">
+        <option value="team">Team Member</option>
+        <option value="unit_head">Unit Head</option>
+        <option value="ceo">CEO</option>
+      </select>
+    </div>
+    <div class="form-group" id="em_buGroup">
+      <label>Business Unit</label>
+      <select class="form-select-s" id="em_bu"></select>
+    </div>
+    <div class="msg" id="emMsg"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditMember()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zwywjfkivljkifmhifdc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qdeTQAldycJUMXnlcEkA5A_RNGkEa4F';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let members = [];
+let delegations = [];
+let buList = [];
+let editingMemberId = null;
+
+const AVATAR_COLORS = ['av-0','av-1','av-2','av-3','av-4','av-5','av-6','av-7','av-8'];
+
+// ── INIT ──────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user) { window.location.href = 'dheyma-login.html'; return; }
+  currentUser = session.user;
+
+  const { data: prof } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  currentProfile = prof || {};
+  document.getElementById('headerUser').textContent = prof?.full_name || currentUser.email;
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+
+  await loadAll();
+})();
+
+async function loadAll() {
+  await Promise.all([loadMembers(), loadDelegations(), loadBUs()]);
+  renderAll();
+}
+
+async function loadMembers() {
+  const { data } = await sb.from('profiles').select('*').order('full_name');
+  members = data || [];
+}
+
+async function loadDelegations() {
+  const { data } = await sb.from('tasks')
+    .select('id,title,unit,priority,status,delegated_to_id,delegated_to_name,delegated_to_email,delegation_status,due')
+    .not('delegated_to_id','is',null)
+    .neq('status','Done')
+    .order('due',{ascending:true});
+  delegations = data || [];
+}
+
+async function loadBUs() {
+  const { data } = await sb.from('settings').select('value').eq('key','bu_list').maybeSingle();
+  buList = data?.value || ['Agriculture','Trading','Logistics','BYD','Construction','Mining','Tourism','Others'];
+  populateBUSelects();
+}
+
+function populateBUSelects() {
+  ['qm_bu','em_bu'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— None —</option>'
+      + buList.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  });
+}
+
+function renderAll() {
+  renderStats();
+  renderMembers();
+  renderDelegations();
+  renderBUBreakdown();
+}
+
+function renderStats() {
+  const active = delegations.filter(d => d.delegation_status !== 'Completed');
+  const pending = delegations.filter(d => d.delegation_status === 'Pending' || !d.delegation_status);
+  const unitHeads = members.filter(m => m.role === 'unit_head');
+  const buCount = [...new Set(unitHeads.map(m => m.business_unit).filter(Boolean))].length;
+  document.getElementById('stMembers').textContent = members.length;
+  document.getElementById('stUnits').textContent   = buCount;
+  document.getElementById('stDelegated').textContent = active.length;
+  document.getElementById('stPending').textContent   = pending.length;
+}
+
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
+}
+
+function initials(name) {
+  return (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+}
+
+function roleBadge(role) {
+  const labels = { ceo:'👑 CEO', unit_head:'🏢 Unit Head', team:'👤 Team' };
+  const cls    = { ceo:'rb-ceo', unit_head:'rb-unit_head', team:'rb-team' };
+  return `<span class="role-badge ${cls[role]||'rb-team'}">${labels[role]||'👤 Team'}</span>`;
+}
+
+function renderMembers() {
+  if (!members.length) {
+    document.getElementById('memberList').innerHTML = `<div class="empty"><div class="ei">👥</div>No team members yet. Add one using the form.</div>`;
+    return;
+  }
+  const isCEO = currentProfile?.role === 'ceo';
+  document.getElementById('memberList').innerHTML = members.map(m => {
+    const name  = m.full_name || m.id;
+    const delCount = delegations.filter(d => d.delegated_to_id === m.id).length;
+    const buTag = m.business_unit ? `<span class="bu-badge">${esc(m.business_unit)}</span>` : '';
+    const taskTag = delCount ? `<span class="task-count-badge">📤 ${delCount} delegated</span>` : '';
+    const editBtn = isCEO ? `<button class="btn btn-ghost btn-sm" onclick="openEditModal('${m.id}')">✎ Edit</button>` : '';
+    return `<div class="member-card">
+      <div class="member-avatar ${avatarColor(name)}">${initials(name)}</div>
+      <div class="member-info">
+        <div class="member-name">${esc(name)}</div>
+        <div class="member-email">${esc(m.whatsapp ? '📱 ' + m.whatsapp : 'No WhatsApp set')}</div>
+        <div class="member-meta">${roleBadge(m.role)}${buTag}${taskTag}</div>
+      </div>
+      <div class="member-actions">${editBtn}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDelegations() {
+  if (!delegations.length) {
+    document.getElementById('delegationList').innerHTML = `<div class="empty" style="padding:20px;"><div class="ei">✅</div>No active delegations.</div>`;
+    return;
+  }
+  const statusCls = {
+    Pending:'ds-pending', Accepted:'ds-accepted', 'In Progress':'ds-inprog',
+    Completed:'ds-completed', Rejected:'ds-rejected'
+  };
+  document.getElementById('delegationList').innerHTML = `
+    <div style="overflow:auto;">
+    <table class="del-table">
+      <thead><tr>
+        <th>Task</th><th>Delegated To</th><th>BU</th><th>Due</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+        ${delegations.map(d => {
+          const sc = statusCls[d.delegation_status] || 'ds-pending';
+          const status = d.delegation_status || 'Pending';
+          const due = d.due ? new Date(d.due+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+          const today = new Date().toISOString().slice(0,10);
+          const overdue = d.due && d.due < today ? ' style="color:var(--critical);"' : '';
+          return `<tr>
+            <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(d.title)}</td>
+            <td>${esc(d.delegated_to_name || '—')}</td>
+            <td>${d.unit ? `<span style="font-size:.75rem;color:var(--accent2);">${esc(d.unit)}</span>` : '—'}</td>
+            <td${overdue}>${due}</td>
+            <td><span class="ds-badge ${sc}">${status}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+function renderBUBreakdown() {
+  const buMap = {};
+  members.forEach(m => {
+    const bu = m.business_unit || '—';
+    if (!buMap[bu]) buMap[bu] = { count:0, roles:{} };
+    buMap[bu].count++;
+    buMap[bu].roles[m.role] = (buMap[bu].roles[m.role]||0) + 1;
+  });
+  const sorted = Object.entries(buMap).sort((a,b) => b[1].count - a[1].count);
+  if (!sorted.length) {
+    document.getElementById('buBreakdown').innerHTML = '<p style="color:var(--muted);font-size:.82rem;">No data yet.</p>';
+    return;
+  }
+  const max = sorted[0][1].count;
+  document.getElementById('buBreakdown').innerHTML = sorted.map(([bu, d]) => {
+    const pct = Math.round(d.count / max * 100);
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:5px;">
+        <span style="font-weight:600;">${esc(bu)}</span>
+        <span style="color:var(--muted);">${d.count} member${d.count>1?'s':''}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:99px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:99px;transition:width .6s ease;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── QUICK ADD (invite-based) ──────────────────────────────────────
+async function quickAddMember() {
+  const name  = document.getElementById('qm_name').value.trim();
+  const email = document.getElementById('qm_email').value.trim();
+  const role  = document.getElementById('qm_role').value;
+  const bu    = document.getElementById('qm_bu').value;
+  const msg   = document.getElementById('qmMsg');
+  msg.className = 'msg'; msg.textContent = '';
+
+  if (!name || !email) { msg.className='msg msg-err'; msg.textContent='Name and email are required.'; return; }
+
+  // Use Supabase admin invite if available, otherwise guide user
+  // For now: create a profile entry with matching email as a placeholder
+  // Real invite: use Supabase dashboard or Admin API
+  // We'll store member info in a pending_invites setting
+  const existing = members.find(m => m.full_name?.toLowerCase() === name.toLowerCase());
+  if (existing) { msg.className='msg msg-err'; msg.textContent='A member with this name already exists.'; return; }
+
+  // Save to a pending_invites settings key
+  const { data: settingsRow } = await sb.from('settings').select('value').eq('key','pending_invites').eq('user_id',currentUser.id).maybeSingle();
+  const invites = settingsRow?.value || [];
+  invites.push({ name, email, role, bu, invited_at: new Date().toISOString() });
+  await sb.from('settings').upsert({ key:'pending_invites', value:invites, user_id:currentUser.id }, { onConflict:'user_id,key' });
+
+  msg.className = 'msg msg-ok';
+  msg.textContent = `✓ ${name} added to pending invites. Use Supabase Auth dashboard to send the invitation email to ${email}.`;
+  document.getElementById('qm_name').value = '';
+  document.getElementById('qm_email').value = '';
+}
+
+// ── EDIT MEMBER MODAL ─────────────────────────────────────────────
+function openEditModal(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  editingMemberId = id;
+  document.getElementById('em_name').value = m.full_name || '';
+  document.getElementById('em_wa').value   = m.whatsapp  || '';
+  document.getElementById('em_role').value = m.role      || 'team';
+  // populate BU select then set value
+  const buSel = document.getElementById('em_bu');
+  buSel.innerHTML = '<option value="">— None —</option>'
+    + buList.map(b => `<option value="${esc(b)}"${b===m.business_unit?' selected':''}>${esc(b)}</option>`).join('');
+  onEditRoleChange();
+  document.getElementById('emMsg').textContent = '';
+  document.getElementById('editMemberModal').classList.add('open');
+}
+function closeEditModal() { document.getElementById('editMemberModal').classList.remove('open'); }
+
+function onEditRoleChange() {
+  const role = document.getElementById('em_role').value;
+  document.getElementById('em_buGroup').style.display = (role === 'unit_head' || role === 'team') ? 'flex' : 'none';
+}
+
+async function saveEditMember() {
+  const name = document.getElementById('em_name').value.trim();
+  const wa   = document.getElementById('em_wa').value.trim();
+  const role = document.getElementById('em_role').value;
+  const bu   = document.getElementById('em_bu').value;
+  const msg  = document.getElementById('emMsg');
+
+  const { error } = await sb.from('profiles').update({
+    full_name: name, whatsapp: wa, role, business_unit: bu
+  }).eq('id', editingMemberId);
+
+  if (error) { msg.className='msg msg-err'; msg.textContent='Save failed: ' + error.message; return; }
+  msg.className = 'msg msg-ok'; msg.textContent = '✓ Saved.';
+  setTimeout(closeEditModal, 800);
+  await loadMembers();
+  renderAll();
+}
+
+async function doSignOut() {
+  await sb.auth.signOut();
+  window.location.href = 'dheyma-login.html';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── ADD MEMBER MODAL (full) ───────────────────────────────────────
+function openAddModal() {
+  // scroll to the quick add form on right panel
+  document.getElementById('qm_name').focus();
+  document.getElementById('qm_name').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+</script>
+</body>
+</html>

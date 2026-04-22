@@ -94,6 +94,20 @@
   .s-blocked    { background: #ef444420; color: var(--critical); border: 1px solid #ef444440; }
   .s-done-badge { background: #22c55e20; color: var(--low);      border: 1px solid #22c55e40; }
   .unit-badge { background: var(--surface2); color: var(--accent2); border: 1px solid #6366f130; font-size: .73rem; }
+  /* ── TASK TYPE BADGE ── */
+  .type-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 99px; font-size: .7rem; font-weight: 700; white-space: nowrap; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .type-meeting     { background:#6366f115;color:var(--accent2); border:1px solid #6366f140; }
+  .type-decision    { background:#f9731615;color:var(--high);    border:1px solid #f9731640; }
+  .type-delegation  { background:#eab30815;color:var(--medium);  border:1px solid #eab30840; }
+  .type-followup    { background:#818cf815;color:var(--accent2); border:1px solid #818cf840; }
+  .type-project     { background:#e879f915;color:#e879f9;        border:1px solid #e879f940; }
+  /* ── DELEGATION STATUS ── */
+  .ds-pending  { background:#eab30820;color:var(--medium); border:1px solid #eab30840; }
+  .ds-inprog   { background:#6366f120;color:var(--accent2);border:1px solid #6366f140; }
+  .ds-done     { background:#22c55e20;color:var(--low);    border:1px solid #22c55e40; }
+  .ds-rejected { background:#ef444420;color:var(--critical);border:1px solid #ef444440; }
+  /* ── RECURRING BADGE ── */
+  .recur-badge { font-size:.68rem;color:var(--muted);border:1px solid var(--border);background:var(--surface2);border-radius:99px;padding:2px 7px;white-space:nowrap; }
 
   /* ── TABLE ── */
   .task-table { width: 100%; border-collapse: collapse; }
@@ -495,6 +509,7 @@
     <span id="headerUser" style="font-size:.75rem;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     <button class="btn btn-outline" onclick="syncNow()" title="Pull latest data from all devices" style="font-size:.8rem;padding:6px 12px;">⟳ Sync</button>
     <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ <span class="hd-label">Manage BUs</span></button>
+    <button class="btn btn-outline" onclick="openProfileModal()" title="My Profile" style="font-size:.8rem;padding:6px 12px;">👤 <span class="hd-label">Profile</span></button>
     <button class="btn btn-primary" onclick="openAddModal()">+ <span class="hd-label">New Task</span></button>
     <button class="btn btn-outline" onclick="signOut()" title="Sign out" style="font-size:.8rem;padding:6px 12px;color:var(--muted);">⏻</button>
   </div>
@@ -525,6 +540,16 @@
       <option value="In Progress">In Progress</option>
       <option value="Blocked">Blocked</option>
       <option value="Done">Done</option>
+    </select>
+    <select class="filter" id="filterType" onchange="renderAll()">
+      <option value="">All Types</option>
+      <option value="Task">Task</option>
+      <option value="Meeting">Meeting</option>
+      <option value="Decision">Decision</option>
+      <option value="Delegation">Delegation</option>
+      <option value="Follow-up">Follow-up</option>
+      <option value="Project">Project</option>
+      <option value="Other">Other</option>
     </select>
     <div class="toolbar-spacer"></div>
     <div class="view-switcher" style="display:flex;gap:4px;">
@@ -586,8 +611,16 @@
           <input type="text" id="f_title" placeholder="What needs to be done?" />
         </div>
         <div class="form-group">
-          <label>Assigned To</label>
-          <input type="text" id="f_assignee" placeholder="Name or team" />
+          <label>Task Type</label>
+          <select class="form-select" id="f_type">
+            <option value="Task">📌 Task</option>
+            <option value="Meeting">🤝 Meeting</option>
+            <option value="Decision">⚖️ Decision</option>
+            <option value="Delegation">📤 Delegation</option>
+            <option value="Follow-up">🔄 Follow-up</option>
+            <option value="Project">🗂 Project</option>
+            <option value="Other">📎 Other</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Priority</label>
@@ -608,12 +641,54 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Assigned To</label>
+          <input type="text" id="f_assignee" placeholder="Name or team" />
+        </div>
+        <div class="form-group">
+          <label>Delegate To (Team Member)</label>
+          <select class="form-select" id="f_delegate" onchange="onDelegateChange()">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="form-group full" id="delegateNoteWrap" style="display:none;">
+          <label>Delegation Note</label>
+          <textarea id="f_delegate_note" placeholder="Instructions or context for the delegate…" style="min-height:60px;"></textarea>
+        </div>
+        <div class="form-group" id="delegateStatusWrap" style="display:none;">
+          <label>Delegation Status</label>
+          <select class="form-select" id="f_delegate_status">
+            <option value="Pending">Pending</option>
+            <option value="Accepted">Accepted</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Due Date</label>
           <input type="date" id="f_due" />
         </div>
         <div class="form-group">
           <label>Reminder Date</label>
           <input type="date" id="f_reminder" />
+        </div>
+        <!-- Recurring task row -->
+        <div class="form-group full" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex-direction:row;align-items:center;gap:14px;flex-wrap:wrap;">
+          <label style="text-transform:none;font-size:.82rem;font-weight:600;color:var(--text);letter-spacing:0;display:flex;align-items:center;gap:8px;margin:0;flex-shrink:0;">
+            <input type="checkbox" id="f_recurring" onchange="onRecurringChange()" style="accent-color:var(--accent);width:16px;height:16px;">
+            Recurring Task
+          </label>
+          <div id="recurFields" style="display:none;display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;">
+            <select class="form-select" id="f_recur_pattern" style="flex:1;min-width:130px;">
+              <option value="daily">Daily</option>
+              <option value="weekly" selected>Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
+              <label style="font-size:.75rem;color:var(--muted);margin:0;text-transform:none;letter-spacing:0;white-space:nowrap;">Until</label>
+              <input type="date" id="f_recur_end" style="flex:1;" />
+            </div>
+          </div>
         </div>
         <div class="form-group full">
           <label>Notes / Context</label>
@@ -744,6 +819,36 @@
   </div>
 </div>
 
+<!-- ══════════════════ PROFILE MODAL ══════════════════ -->
+<div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfileModal()">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">My Profile &amp; Settings</span>
+      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    </div>
+    <div class="form-group full">
+      <label>Full Name</label>
+      <input type="text" class="form-select" id="pm_name" placeholder="Your full name" style="width:100%;" />
+    </div>
+    <div class="form-group full" style="margin-top:12px;">
+      <label>WhatsApp Number</label>
+      <input type="text" class="form-select" id="pm_wa" placeholder="+975 17 123 456" style="width:100%;" />
+      <p style="font-size:.74rem;color:var(--muted);margin-top:5px;">Include country code, e.g. +97517123456</p>
+    </div>
+    <div class="form-group full" style="margin-top:12px;">
+      <label>Role</label>
+      <input type="text" class="form-select" id="pm_role" disabled style="width:100%;opacity:.5;" />
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px 14px;font-size:.78rem;color:var(--muted);margin-top:14px;line-height:1.6;">
+      💡 <strong style="color:var(--text);">WhatsApp reminders</strong> require a Twilio backend. Contact your system admin to enable automated alerts.
+    </div>
+    <div class="form-actions" style="margin-top:18px;">
+      <button class="btn btn-outline" onclick="closeProfileModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ LOGIN OVERLAY ══════════════════ -->
 <div id="loginOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:0;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 36px;width:400px;max-width:94vw;box-shadow:0 24px 60px #0008;">
@@ -804,25 +909,32 @@ async function signUp() {
 
 async function signOut() {
   await sb.auth.signOut();
-  tasks=[]; todos=[]; reminders=[];
-  renderAll();
-  showLogin();
+  window.location.href = 'dheyma-login.html';
 }
 
 // ── DB field sanitisers — only send columns that exist in the schema ──
 function cleanTask(t, uid) {
   return {
-    id:        t.id,
-    user_id:   uid,
-    title:     t.title     || '',
-    unit:      t.unit      || '',
-    assignee:  t.assignee  || '',
-    priority:  t.priority  || 'Medium',
-    status:    t.status    || 'Not Started',
-    due:       t.due       || '',
-    reminder:  t.reminder  || '',
-    notes:     t.notes     || '',
-    subtasks:  t.subtasks  || [],
+    id:                 t.id,
+    user_id:            uid,
+    title:              t.title              || '',
+    task_type:          t.task_type          || 'Task',
+    unit:               t.unit               || '',
+    assignee:           t.assignee           || '',
+    delegated_to_id:    t.delegated_to_id    || null,
+    delegated_to_name:  t.delegated_to_name  || '',
+    delegated_to_email: t.delegated_to_email || '',
+    delegation_note:    t.delegation_note    || '',
+    delegation_status:  t.delegation_status  || '',
+    priority:           t.priority           || 'Medium',
+    status:             t.status             || 'Not Started',
+    due:                t.due                || '',
+    reminder:           t.reminder           || '',
+    notes:              t.notes              || '',
+    subtasks:           t.subtasks           || [],
+    is_recurring:       t.is_recurring       || false,
+    recur_pattern:      t.recur_pattern      || '',
+    recur_end_date:     t.recur_end_date     || '',
   };
 }
 function cleanTodo(t, uid) {
@@ -964,27 +1076,32 @@ async function initSupabase() {
   const { data:{ session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
-    document.getElementById('headerUser').textContent = currentUser.email;
+    // load profile for name + role display
+    const { data: prof } = await sb.from('profiles').select('full_name,role,business_unit,whatsapp').eq('id', currentUser.id).maybeSingle();
+    currentProfile = prof || {};
+    document.getElementById('headerUser').textContent = prof?.full_name || currentUser.email;
     await loadAllData();
+    await loadTeamMembers();
     setupRealtime(currentUser.id);
     hideLogin();
   } else {
-    showLogin();
+    window.location.href = 'dheyma-login.html';
+    return;
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
-      document.getElementById('headerUser').textContent = currentUser.email;
+      const { data: prof } = await sb.from('profiles').select('full_name,role,business_unit,whatsapp').eq('id', currentUser.id).maybeSingle();
+      currentProfile = prof || {};
+      document.getElementById('headerUser').textContent = prof?.full_name || currentUser.email;
       await loadAllData();
+      await loadTeamMembers();
       setupRealtime(currentUser.id);
       hideLogin();
       renderAll();
       setTimeout(checkReminders, 800);
     } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      document.getElementById('headerUser').textContent = '';
-      if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
-      showLogin();
+      window.location.href = 'dheyma-login.html';
     }
   });
 }
@@ -1001,6 +1118,8 @@ let buList      = JSON.parse(localStorage.getItem('dheyma_bus')       || 'null')
 let tasks       = JSON.parse(localStorage.getItem('dheyma_tasks')     || '[]');
 let reminders   = JSON.parse(localStorage.getItem('dheyma_reminders') || '[]');
 let todos       = JSON.parse(localStorage.getItem('dheyma_todos')     || '[]');
+let currentProfile   = {};
+let teamMembers      = [];
 let editingId        = null;
 let currentDetailId  = null;
 let editingRemId     = null;
@@ -1021,6 +1140,68 @@ function saveTask_db(t)               { dbUpsert('tasks',     t); }
 function saveTodo_db(t)               { dbUpsert('todos',     t); }
 function saveReminder_db(r)           { dbUpsert('reminders', r); }
 function genId()         { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ══════════════════════════════════════════════════════════════════
+// TEAM MEMBERS & DELEGATION HELPERS
+// ══════════════════════════════════════════════════════════════════
+async function loadTeamMembers() {
+  const { data } = await sb.from('profiles').select('id,full_name,role,business_unit').neq('role','');
+  teamMembers = data || [];
+}
+
+function populateDelegateSelect(currentId) {
+  const sel = document.getElementById('f_delegate');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None (not delegated) —</option>'
+    + teamMembers.map(m => {
+      const label = (m.full_name || m.id) + (m.business_unit ? ` (${m.business_unit})` : '');
+      return `<option value="${m.id}" data-name="${esc(m.full_name||'')}" data-email=""${m.id===currentId?' selected':''}>${esc(label)}</option>`;
+    }).join('');
+}
+
+function onDelegateChange() {
+  const val = document.getElementById('f_delegate')?.value;
+  const show = !!val;
+  if (document.getElementById('delegateNoteWrap'))   document.getElementById('delegateNoteWrap').style.display   = show ? 'flex' : 'none';
+  if (document.getElementById('delegateStatusWrap')) document.getElementById('delegateStatusWrap').style.display = show ? 'flex' : 'none';
+}
+
+function onRecurringChange() {
+  const checked = document.getElementById('f_recurring')?.checked;
+  if (document.getElementById('recurFields')) document.getElementById('recurFields').style.display = checked ? 'flex' : 'none';
+}
+
+// ── TASK TYPE BADGE ───────────────────────────────────────────────
+function typeBadgeHtml(type) {
+  if (!type || type === 'Task') return '';
+  const icons = { Meeting:'🤝', Decision:'⚖️', Delegation:'📤', 'Follow-up':'🔄', Project:'🗂', Other:'📎' };
+  const cls   = { Meeting:'type-meeting', Decision:'type-decision', Delegation:'type-delegation', 'Follow-up':'type-followup', Project:'type-project' };
+  const icon  = icons[type] || '📌';
+  const c     = cls[type]   || '';
+  return `<span class="type-badge ${c}">${icon} ${esc(type)}</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PROFILE MODAL
+// ══════════════════════════════════════════════════════════════════
+function openProfileModal() {
+  document.getElementById('pm_name').value = currentProfile?.full_name || '';
+  document.getElementById('pm_wa').value   = currentProfile?.whatsapp  || '';
+  document.getElementById('pm_role').value = currentProfile?.role      || 'team';
+  document.getElementById('profileModal').classList.add('open');
+}
+function closeProfileModal() { document.getElementById('profileModal').classList.remove('open'); }
+
+async function saveProfile() {
+  const name = document.getElementById('pm_name').value.trim();
+  const wa   = document.getElementById('pm_wa').value.trim();
+  if (!currentUser) return;
+  const { error } = await sb.from('profiles').upsert({ id: currentUser.id, full_name: name, whatsapp: wa }, { onConflict: 'id' });
+  if (error) { alert('Save failed: ' + error.message); return; }
+  currentProfile = { ...currentProfile, full_name: name, whatsapp: wa };
+  document.getElementById('headerUser').textContent = name || currentUser.email;
+  closeProfileModal();
+}
 
 // ── SEED ──────────────────────────────────────────────────────────
 if (tasks.length === 0) {
@@ -1138,17 +1319,19 @@ function renderFilterBU() {
 }
 
 function getFiltered() {
-  const q   = document.getElementById('searchInput').value.toLowerCase();
+  const q    = document.getElementById('searchInput').value.toLowerCase();
   const unit = document.getElementById('filterUnit').value;
   const pri  = document.getElementById('filterPriority').value;
   const sta  = document.getElementById('filterStatus').value;
+  const typ  = document.getElementById('filterType')?.value || '';
   const priOrd = {Critical:0,High:1,Medium:2,Low:3};
   const staOrd = {Blocked:0,'In Progress':1,'Not Started':2,Done:3};
   return tasks.filter(t =>
-    (!q   || t.title.toLowerCase().includes(q) || (t.unit||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
+    (!q    || t.title.toLowerCase().includes(q) || (t.unit||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
     (!unit || t.unit === unit) &&
     (!pri  || t.priority === pri) &&
-    (!sta  || t.status === sta)
+    (!sta  || t.status === sta) &&
+    (!typ  || (t.task_type||'Task') === typ)
   ).sort((a,b) => {
     let av = a[sortKey]||'', bv = b[sortKey]||'';
     if (sortKey==='priority') { av = priOrd[av]??9; bv = priOrd[bv]??9; }
@@ -1383,8 +1566,14 @@ function renderTable() {
     const dc = dueCls(t.due,t.status);
     const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&t.due<todayStr()?' ⚠':'') : '—';
     const rc = t.status==='Done'?'done-row':t.status==='Blocked'?'blocked-row':'';
+    const typBadge = typeBadgeHtml(t.task_type);
+    const delBadge = t.delegated_to_name ? `<span class="type-badge type-delegation" style="font-size:.68rem;">📤 ${esc(t.delegated_to_name)}</span>` : '';
+    const recBadge = t.is_recurring ? `<span class="recur-badge">🔄 ${t.recur_pattern||'recurring'}</span>` : '';
     return `<tr class="${rc}" onclick="openDetail('${t.id}')">
-      <td class="task-title-cell">${esc(t.title)}${t.notes?`<div class="task-notes-preview">${esc(t.notes)}</div>`:''}</td>
+      <td class="task-title-cell">${esc(t.title)}
+        ${t.notes?`<div class="task-notes-preview">${esc(t.notes)}</div>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${typBadge}${delBadge}${recBadge}</div>
+      </td>
       <td class="mob-meta-cell"><div class="task-meta-row">
         ${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}
         ${priBadge(t.priority)}
@@ -1418,7 +1607,8 @@ function renderBoard() {
     const cards = items.map(t=>`
       <div class="kanban-card" onclick="openDetail('${t.id}')">
         <div class="kanban-card-title">${esc(t.title)}</div>
-        <div class="kanban-card-meta">${priBadge(t.priority)}${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}</div>
+        <div class="kanban-card-meta">${priBadge(t.priority)}${t.unit?`<span class="unit-badge">${esc(t.unit)}</span>`:''}${typeBadgeHtml(t.task_type)}</div>
+        ${t.delegated_to_name?`<div style="font-size:.72rem;color:var(--medium);margin-top:4px;">📤 ${esc(t.delegated_to_name)}</div>`:''}
         ${t.due?`<div class="kanban-card-due">📅 ${fmtDate(t.due)}</div>`:''}
       </div>`).join('');
     return `<div class="kanban-col">
@@ -1442,9 +1632,16 @@ function openAddModal() {
   document.getElementById('addBUInlineRow').style.display = 'none';
   document.getElementById('formBody').classList.remove('revealed');
   document.getElementById('formPlaceholder').style.display = 'block';
-  ['f_title','f_assignee','f_due','f_reminder','f_notes'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('f_priority').value = 'Medium';
-  document.getElementById('f_status').value   = 'Not Started';
+  ['f_title','f_assignee','f_due','f_reminder','f_notes','f_delegate_note','f_recur_end'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('f_priority').value  = 'Medium';
+  document.getElementById('f_status').value    = 'Not Started';
+  if (document.getElementById('f_type'))    document.getElementById('f_type').value    = 'Task';
+  if (document.getElementById('f_delegate')) document.getElementById('f_delegate').value = '';
+  if (document.getElementById('f_recurring')) document.getElementById('f_recurring').checked = false;
+  if (document.getElementById('recurFields')) document.getElementById('recurFields').style.display = 'none';
+  if (document.getElementById('delegateNoteWrap')) document.getElementById('delegateNoteWrap').style.display = 'none';
+  if (document.getElementById('delegateStatusWrap')) document.getElementById('delegateStatusWrap').style.display = 'none';
+  populateDelegateSelect('');
   renderChecklistEdit();
   document.getElementById('taskModal').classList.add('open');
 }
@@ -1476,6 +1673,20 @@ function openEditModal(id) {
   document.getElementById('f_due').value      = t.due||'';
   document.getElementById('f_reminder').value = t.reminder||'';
   document.getElementById('f_notes').value    = t.notes||'';
+  if (document.getElementById('f_type')) document.getElementById('f_type').value = t.task_type||'Task';
+  // delegation
+  populateDelegateSelect(t.delegated_to_id||'');
+  if (document.getElementById('f_delegate_note'))   document.getElementById('f_delegate_note').value   = t.delegation_note||'';
+  if (document.getElementById('f_delegate_status')) document.getElementById('f_delegate_status').value = t.delegation_status||'Pending';
+  const hasDel = !!(t.delegated_to_id);
+  if (document.getElementById('delegateNoteWrap'))   document.getElementById('delegateNoteWrap').style.display   = hasDel ? 'flex' : 'none';
+  if (document.getElementById('delegateStatusWrap')) document.getElementById('delegateStatusWrap').style.display = hasDel ? 'flex' : 'none';
+  // recurring
+  const isRec = !!(t.is_recurring);
+  if (document.getElementById('f_recurring'))    document.getElementById('f_recurring').checked        = isRec;
+  if (document.getElementById('recurFields'))    document.getElementById('recurFields').style.display  = isRec ? 'flex' : 'none';
+  if (document.getElementById('f_recur_pattern')) document.getElementById('f_recur_pattern').value     = t.recur_pattern||'weekly';
+  if (document.getElementById('f_recur_end'))    document.getElementById('f_recur_end').value          = t.recur_end_date||'';
   renderChecklistEdit();
   document.getElementById('taskModal').classList.add('open');
 }
@@ -1489,15 +1700,34 @@ function saveTask() {
   if (!unit)  { alert('Please select a Project / BU first.'); return; }
   if (!title) { document.getElementById('f_title').style.borderColor='var(--critical)'; document.getElementById('f_title').focus(); return; }
   document.getElementById('f_title').style.borderColor = '';
+
+  // delegation
+  const delSel = document.getElementById('f_delegate');
+  const delOpt = delSel?.options[delSel.selectedIndex];
+  const delId   = delSel?.value || '';
+  const delName  = delOpt?.dataset?.name  || '';
+  const delEmail = delOpt?.dataset?.email || '';
+
+  const isRecurring = document.getElementById('f_recurring')?.checked || false;
+
   const data = {
     title, unit,
-    assignee: document.getElementById('f_assignee').value.trim(),
-    priority: document.getElementById('f_priority').value,
-    status:   document.getElementById('f_status').value,
-    due:      document.getElementById('f_due').value,
-    reminder: document.getElementById('f_reminder').value,
-    notes:    document.getElementById('f_notes').value.trim(),
-    subtasks: editSubtasks,
+    task_type:          document.getElementById('f_type')?.value || 'Task',
+    assignee:           document.getElementById('f_assignee').value.trim(),
+    delegated_to_id:    delId   || null,
+    delegated_to_name:  delName,
+    delegated_to_email: delEmail,
+    delegation_note:    document.getElementById('f_delegate_note')?.value.trim() || '',
+    delegation_status:  delId ? (document.getElementById('f_delegate_status')?.value || 'Pending') : '',
+    priority:           document.getElementById('f_priority').value,
+    status:             document.getElementById('f_status').value,
+    due:                document.getElementById('f_due').value,
+    reminder:           document.getElementById('f_reminder').value,
+    notes:              document.getElementById('f_notes').value.trim(),
+    subtasks:           editSubtasks,
+    is_recurring:       isRecurring,
+    recur_pattern:      isRecurring ? (document.getElementById('f_recur_pattern')?.value || 'weekly') : '',
+    recur_end_date:     isRecurring ? (document.getElementById('f_recur_end')?.value || '') : '',
   };
   if (editingId) {
     const i = tasks.findIndex(t=>t.id===editingId);
