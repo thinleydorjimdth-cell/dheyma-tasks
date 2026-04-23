@@ -966,29 +966,19 @@ async function loadAllData(silent=false) {
   if (!silent) setSyncStatus('syncing');
   const uid = currentUser.id;
   const [td, tod, rd, sd] = await Promise.all([
-    sb.from('tasks').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+    sb.from('tasks').select('*').order('created_at', {ascending:false}),
     sb.from('todos').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
     sb.from('reminders').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
     sb.from('settings').select('value').eq('key','bu_list').eq('user_id',uid).maybeSingle(),
   ]);
-  const anyError = td.error || tod.error || rd.error;
-  if (anyError) { setSyncStatus('error', anyError.message); return; }
 
-  if (td.data?.length)  { tasks     = td.data;       localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
-  if (tod.data?.length) { todos     = tod.data;      localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
-  if (rd.data?.length)  { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
-  if (sd.data?.value)   { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
+  // Always use Supabase as source of truth — replace local data
+  if (!td.error  && td.data)  { tasks     = td.data;       localStorage.setItem('dheyma_tasks',     JSON.stringify(tasks));     }
+  if (!tod.error && tod.data) { todos     = tod.data;      localStorage.setItem('dheyma_todos',     JSON.stringify(todos));     }
+  if (!rd.error  && rd.data)  { reminders = rd.data;       localStorage.setItem('dheyma_reminders', JSON.stringify(reminders)); }
+  if (sd.data?.value)         { buList    = sd.data.value; localStorage.setItem('dheyma_bus',       JSON.stringify(buList));    }
 
-  // First sign-in on this device: push localStorage → Supabase
-  if (!td.data?.length  && tasks.length)
-    await Promise.all(tasks.map(t => sb.from('tasks').upsert(cleanTask(t,uid))));
-  if (!tod.data?.length && todos.length)
-    await Promise.all(todos.map(t => sb.from('todos').upsert(cleanTodo(t,uid))));
-  if (!rd.data?.length  && reminders.length)
-    await Promise.all(reminders.map(r => sb.from('reminders').upsert(cleanReminder(r,uid))));
-  if (!sd.data)
-    await sb.from('settings').upsert({key:'bu_list', value:buList, user_id:uid},{onConflict:'user_id,key'});
-
+  if (td.error) { setSyncStatus('error', td.error.message); return; }
   setSyncStatus('ok');
 }
 
@@ -1011,11 +1001,17 @@ async function dbUpsert(table, item) {
   if (!currentUser) return;
   const uid = currentUser.id;
   let row;
-  if (table==='tasks')     row = cleanTask(item, uid);
+  if (table==='tasks')          row = cleanTask(item, uid);
   else if (table==='todos')     row = cleanTodo(item, uid);
   else if (table==='reminders') row = cleanReminder(item, uid);
   else row = {...item, user_id: uid};
-  sb.from(table).upsert(row).then(({error})=>{ if(error) console.warn('Sync '+table+':', error.message); });
+  const { error } = await sb.from(table).upsert(row);
+  if (error) {
+    setSyncStatus('error', error.message);
+    console.error('Save failed:', table, error.message);
+  } else {
+    setSyncStatus('ok');
+  }
 }
 async function dbDelete(table, id) {
   if (!currentUser) return;
