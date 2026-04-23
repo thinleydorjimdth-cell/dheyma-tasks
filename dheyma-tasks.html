@@ -506,6 +506,7 @@
   <div class="header-right">
     <span class="date-badge" id="headerDate"></span>
     <span id="syncStatus" style="font-size:.75rem;white-space:nowrap;"></span>
+    <span id="lastSync" style="font-size:.72rem;color:var(--muted);white-space:nowrap;"></span>
     <span id="headerUser" style="font-size:.75rem;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     <button class="btn btn-outline" onclick="syncNow()" title="Pull latest data from all devices" style="font-size:.8rem;padding:6px 12px;">⟳ Sync</button>
     <button class="btn btn-outline" onclick="openBUManager()" title="Manage Project/BU list" style="font-size:.8rem;padding:6px 12px;">⚙ <span class="hd-label">Manage BUs</span></button>
@@ -1026,19 +1027,23 @@ async function dbSaveSettings(key, value) {
 let realtimeChannel = null;
 
 function setupRealtime(uid) {
-  // Auto-refresh every 10 seconds — reliable across all devices
   setSyncStatus('ok');
-  setInterval(async () => {
+
+  async function doRefresh() {
     await loadAllData(true);
     renderAll();
-  }, 10000);
+    const t = new Date();
+    const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0') + ':' + t.getSeconds().toString().padStart(2,'0');
+    const el = document.getElementById('lastSync');
+    if (el) el.textContent = '↻ ' + ts;
+  }
 
-  // Also refresh instantly when user switches back to this tab/app
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      await loadAllData(true);
-      renderAll();
-    }
+  // Refresh every 10 seconds
+  setInterval(doRefresh, 10000);
+
+  // Refresh instantly when user returns to the tab/app
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') doRefresh();
   });
 }
 
