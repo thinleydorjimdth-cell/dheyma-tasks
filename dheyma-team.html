@@ -117,6 +117,23 @@
   .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:.875rem;}
   .empty .ei{font-size:2.5rem;margin-bottom:10px;}
 
+  /* ── PERMISSION MODAL ── */
+  .modal.modal-wide{width:640px;}
+  .perm-tab{flex:1;padding:8px;text-align:center;cursor:pointer;border-radius:6px;font-size:.82rem;font-weight:600;color:var(--muted);transition:.15s;}
+  .perm-tab.active{background:var(--accent);color:#fff;}
+  .perm-fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+  .perm-check{display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;transition:border-color .15s;}
+  .perm-check:hover{border-color:var(--accent);}
+  .perm-check input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0;cursor:pointer;}
+  .perm-section-hd{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;}
+  .perm-task-group{margin-bottom:6px;}
+  .perm-task-group-label{display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700;color:var(--text);padding:5px 8px;background:var(--surface);border-radius:6px;cursor:pointer;margin-bottom:2px;}
+  .perm-task-group-label input[type="checkbox"]{accent-color:var(--accent);flex-shrink:0;}
+  .perm-task-item{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 24px;font-size:.8rem;border-radius:5px;cursor:pointer;}
+  .perm-task-item:hover{background:var(--surface);}
+  .perm-task-item input[type="checkbox"]{accent-color:var(--accent);flex-shrink:0;cursor:pointer;}
+  .perm-task-item label{cursor:pointer;flex:1;}
+
   /* ── BU COLORS ── */
   .av-0{background:#6366f1;} .av-1{background:#f97316;} .av-2{background:#22c55e;}
   .av-3{background:#eab308;} .av-4{background:#818cf8;} .av-5{background:#e879f9;}
@@ -239,33 +256,78 @@
 
 <!-- Edit Member Modal -->
 <div class="modal-overlay" id="editMemberModal" onclick="if(event.target===this)closeEditModal()">
-  <div class="modal">
+  <div class="modal modal-wide" style="max-height:90vh;overflow-y:auto;">
     <div class="modal-header">
-      <span class="modal-title">Edit Team Member</span>
+      <span class="modal-title" id="editModalTitle">Edit Team Member</span>
       <button class="modal-close" onclick="closeEditModal()">✕</button>
     </div>
-    <div class="form-group">
-      <label>Full Name</label>
-      <input type="text" class="form-input" id="em_name" placeholder="Full name">
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:20px;">
+      <div class="perm-tab active" id="ptProfile" onclick="switchPermTab('profile')">👤 Profile</div>
+      <div class="perm-tab" id="ptPerms" onclick="switchPermTab('perms')">🔒 Permissions</div>
     </div>
-    <div class="form-group">
-      <label>WhatsApp Number</label>
-      <input type="text" class="form-input" id="em_wa" placeholder="+975 17 123 456">
+
+    <!-- PROFILE PANEL -->
+    <div id="permPanelProfile">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" class="form-input" id="em_name" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number</label>
+        <input type="text" class="form-input" id="em_wa" placeholder="+975 17 123 456">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select class="form-select-s" id="em_role" onchange="onEditRoleChange()">
+          <option value="team">Team Member</option>
+          <option value="unit_head">Unit Head</option>
+          <option value="ceo">CEO</option>
+        </select>
+      </div>
+      <div class="form-group" id="em_buGroup">
+        <label>Business Unit</label>
+        <select class="form-select-s" id="em_bu"></select>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Role</label>
-      <select class="form-select-s" id="em_role" onchange="onEditRoleChange()">
-        <option value="team">Team Member</option>
-        <option value="unit_head">Unit Head</option>
-        <option value="ceo">CEO</option>
-      </select>
+
+    <!-- PERMISSIONS PANEL -->
+    <div id="permPanelPerms" style="display:none;">
+
+      <!-- Editable Fields -->
+      <div style="margin-bottom:20px;">
+        <div class="perm-section-hd">✏️ Fields This Member Can Edit</div>
+        <div class="perm-fields-grid">
+          <label class="perm-check"><input type="checkbox" id="pf_status"> Update Status</label>
+          <label class="perm-check"><input type="checkbox" id="pf_notes"> Add / Edit Notes</label>
+          <label class="perm-check"><input type="checkbox" id="pf_due"> Change Due Date</label>
+          <label class="perm-check"><input type="checkbox" id="pf_priority"> Change Priority</label>
+          <label class="perm-check"><input type="checkbox" id="pf_assignee"> Reassign Task</label>
+          <label class="perm-check"><input type="checkbox" id="pf_del_status"> Update Delegation Status</label>
+          <label class="perm-check"><input type="checkbox" id="pf_subtasks"> Complete Sub-tasks</label>
+          <label class="perm-check"><input type="checkbox" id="pf_add_tasks"> Add New Tasks</label>
+        </div>
+      </div>
+
+      <!-- Task Access -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div class="perm-section-hd" style="margin-bottom:0;">☑ Task Access</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="selectAllTasks()">Select All</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAllTasks()">Clear All</button>
+          </div>
+        </div>
+        <p style="font-size:.72rem;color:var(--muted);margin-bottom:8px;line-height:1.5;">Tick the tasks this member can see and work on. Leave all unchecked to use their role's default access.</p>
+        <div id="permTaskList" style="max-height:240px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="color:var(--muted);font-size:.82rem;padding:8px;">Loading tasks…</div>
+        </div>
+      </div>
     </div>
-    <div class="form-group" id="em_buGroup">
-      <label>Business Unit</label>
-      <select class="form-select-s" id="em_bu"></select>
-    </div>
-    <div class="msg" id="emMsg"></div>
-    <div class="form-actions">
+
+    <div class="msg" id="emMsg" style="margin-top:14px;"></div>
+    <div class="form-actions" style="margin-top:10px;">
       <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditMember()">Save Changes</button>
     </div>
@@ -283,6 +345,8 @@ let members = [];
 let delegations = [];
 let buList = [];
 let editingMemberId = null;
+let editingMemberTasks = [];
+let editingMemberPerms = {};
 
 const AVATAR_COLORS = ['av-0','av-1','av-2','av-3','av-4','av-5','av-6','av-7','av-8'];
 
@@ -486,21 +550,27 @@ async function quickAddMember() {
 }
 
 // ── EDIT MEMBER MODAL ─────────────────────────────────────────────
-function openEditModal(id) {
+async function openEditModal(id) {
   const m = members.find(x => x.id === id);
   if (!m) return;
   editingMemberId = id;
+  editingMemberTasks = [];
+  editingMemberPerms = {};
+  document.getElementById('editModalTitle').textContent = 'Edit: ' + (m.full_name || m.id);
   document.getElementById('em_name').value = m.full_name || '';
   document.getElementById('em_wa').value   = m.whatsapp  || '';
   document.getElementById('em_role').value = m.role      || 'team';
-  // populate BU select then set value
   const buSel = document.getElementById('em_bu');
   buSel.innerHTML = '<option value="">— None —</option>'
     + buList.map(b => `<option value="${esc(b)}"${b===m.business_unit?' selected':''}>${esc(b)}</option>`).join('');
   onEditRoleChange();
   document.getElementById('emMsg').textContent = '';
+  switchPermTab('profile');
   document.getElementById('editMemberModal').classList.add('open');
+  // load permissions in background (no await — modal already open)
+  loadMemberPermissions(id);
 }
+
 function closeEditModal() { document.getElementById('editMemberModal').classList.remove('open'); }
 
 function onEditRoleChange() {
@@ -514,16 +584,153 @@ async function saveEditMember() {
   const role = document.getElementById('em_role').value;
   const bu   = document.getElementById('em_bu').value;
   const msg  = document.getElementById('emMsg');
+  msg.className = 'msg'; msg.textContent = 'Saving…';
 
   const { error } = await sb.from('profiles').update({
     full_name: name, whatsapp: wa, role, business_unit: bu
   }).eq('id', editingMemberId);
 
   if (error) { msg.className='msg msg-err'; msg.textContent='Save failed: ' + error.message; return; }
-  msg.className = 'msg msg-ok'; msg.textContent = '✓ Saved.';
-  setTimeout(closeEditModal, 800);
+
+  await saveMemberPermissions(editingMemberId);
+
+  msg.className = 'msg msg-ok'; msg.textContent = '✓ Saved successfully.';
+  setTimeout(closeEditModal, 900);
   await loadMembers();
   renderAll();
+}
+
+// ── PERMISSIONS ───────────────────────────────────────────────────
+function switchPermTab(tab) {
+  document.getElementById('permPanelProfile').style.display = tab === 'profile' ? 'block' : 'none';
+  document.getElementById('permPanelPerms').style.display   = tab === 'perms'   ? 'block' : 'none';
+  document.getElementById('ptProfile').classList.toggle('active', tab === 'profile');
+  document.getElementById('ptPerms').classList.toggle('active',   tab === 'perms');
+}
+
+async function loadMemberPermissions(memberId) {
+  const { data } = await sb.from('settings')
+    .select('value')
+    .eq('key', 'permissions_' + memberId)
+    .maybeSingle();
+  editingMemberPerms = data?.value || {};
+  setEditableFields(editingMemberPerms.editable_fields || ['status','notes','del_status','subtasks']);
+  await loadPermissionTasks();
+}
+
+async function saveMemberPermissions(memberId) {
+  editingMemberPerms.editable_fields = getEditableFields();
+  await sb.from('settings').upsert(
+    { key: 'permissions_' + memberId, value: editingMemberPerms, user_id: currentUser.id },
+    { onConflict: 'user_id,key' }
+  );
+}
+
+const PERM_FIELDS = ['status','notes','due','priority','assignee','del_status','subtasks','add_tasks'];
+
+function getEditableFields() {
+  return PERM_FIELDS.filter(f => document.getElementById('pf_' + f)?.checked);
+}
+
+function setEditableFields(fields) {
+  PERM_FIELDS.forEach(f => {
+    const cb = document.getElementById('pf_' + f);
+    if (cb) cb.checked = fields.includes(f);
+  });
+}
+
+async function loadPermissionTasks() {
+  document.getElementById('permTaskList').innerHTML =
+    '<div style="color:var(--muted);font-size:.82rem;padding:8px;">Loading tasks…</div>';
+  const { data } = await sb.from('tasks')
+    .select('id,title,unit,status')
+    .neq('status','Done')
+    .order('unit', { ascending: true })
+    .order('title', { ascending: true });
+  editingMemberTasks = data || [];
+  renderPermissionTasks();
+}
+
+function renderPermissionTasks() {
+  const selectedIds = editingMemberPerms.task_ids || [];
+  const byBU = {};
+  editingMemberTasks.forEach(t => {
+    const bu = t.unit || '(No BU)';
+    if (!byBU[bu]) byBU[bu] = [];
+    byBU[bu].push(t);
+  });
+  if (!Object.keys(byBU).length) {
+    document.getElementById('permTaskList').innerHTML =
+      '<div style="color:var(--muted);font-size:.82rem;padding:8px;">No active tasks found.</div>';
+    return;
+  }
+  document.getElementById('permTaskList').innerHTML = Object.entries(byBU).map(([bu, tasks]) => {
+    const allChecked = tasks.length > 0 && tasks.every(t => selectedIds.includes(t.id));
+    const someChecked = !allChecked && tasks.some(t => selectedIds.includes(t.id));
+    return `<div class="perm-task-group">
+      <div class="perm-task-group-label">
+        <input type="checkbox" ${allChecked ? 'checked' : ''} ${someChecked ? 'data-indeterminate="true"' : ''}
+          onchange="toggleBUTasks('${esc(bu).replace(/'/g,"\\'")}', this.checked)"
+          style="accent-color:var(--accent);">
+        <span>${esc(bu)}</span>
+        <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(${tasks.length} task${tasks.length!==1?'s':''})</span>
+      </div>
+      ${tasks.map(t => `<div class="perm-task-item">
+        <input type="checkbox" id="pt_${t.id}" value="${t.id}"
+          ${selectedIds.includes(t.id) ? 'checked' : ''}
+          onchange="onTaskPermChange()">
+        <label for="pt_${t.id}">${esc(t.title)}</label>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+  // apply indeterminate state
+  document.querySelectorAll('[data-indeterminate="true"]').forEach(cb => { cb.indeterminate = true; });
+}
+
+function toggleBUTasks(bu, checked) {
+  const buTasks = editingMemberTasks.filter(t => (t.unit || '(No BU)') === bu);
+  buTasks.forEach(t => {
+    const cb = document.getElementById('pt_' + t.id);
+    if (cb) cb.checked = checked;
+  });
+  onTaskPermChange();
+}
+
+function onTaskPermChange() {
+  const ids = editingMemberTasks
+    .filter(t => document.getElementById('pt_' + t.id)?.checked)
+    .map(t => t.id);
+  editingMemberPerms.task_ids = ids;
+  // update BU group checkboxes
+  const byBU = {};
+  editingMemberTasks.forEach(t => {
+    const bu = t.unit || '(No BU)'; if (!byBU[bu]) byBU[bu] = [];
+    byBU[bu].push(t);
+  });
+  document.querySelectorAll('.perm-task-group-label input[type="checkbox"]').forEach((cb, i) => {
+    const bu = Object.keys(byBU)[i];
+    if (!bu) return;
+    const tasks = byBU[bu];
+    const all  = tasks.every(t => ids.includes(t.id));
+    const some = tasks.some(t => ids.includes(t.id));
+    cb.checked = all;
+    cb.indeterminate = !all && some;
+  });
+}
+
+function selectAllTasks() {
+  editingMemberTasks.forEach(t => {
+    const cb = document.getElementById('pt_' + t.id); if (cb) cb.checked = true;
+  });
+  onTaskPermChange();
+}
+
+function clearAllTasks() {
+  editingMemberTasks.forEach(t => {
+    const cb = document.getElementById('pt_' + t.id); if (cb) cb.checked = false;
+  });
+  editingMemberPerms.task_ids = [];
+  onTaskPermChange();
 }
 
 async function doSignOut() {

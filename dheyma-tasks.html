@@ -1098,6 +1098,7 @@ async function initSupabase() {
     document.getElementById('headerUser').textContent = prof?.full_name || currentUser.email;
     await loadAllData();
     await loadTeamMembers();
+    if (prof?.role === 'team') await loadMemberPermissions(currentUser.id);
     setupRealtime(currentUser.id);
     hideLogin();
   } else {
@@ -1112,6 +1113,7 @@ async function initSupabase() {
       document.getElementById('headerUser').textContent = prof?.full_name || currentUser.email;
       await loadAllData();
       await loadTeamMembers();
+      if (prof?.role === 'team') await loadMemberPermissions(currentUser.id);
       setupRealtime(currentUser.id);
       hideLogin();
       renderAll();
@@ -1136,6 +1138,7 @@ let reminders   = JSON.parse(localStorage.getItem('dheyma_reminders') || '[]');
 let todos       = JSON.parse(localStorage.getItem('dheyma_todos')     || '[]');
 let currentProfile   = {};
 let teamMembers      = [];
+let memberPermissions = null; // null = no restrictions (CEO/unit_head default)
 let editingId        = null;
 let currentDetailId  = null;
 let editingRemId     = null;
@@ -1334,15 +1337,65 @@ function renderFilterBU() {
     + allUnits.map(u=>`<option value="${esc(u)}"${u===cur?' selected':''}>${esc(u)}</option>`).join('');
 }
 
+async function loadMemberPermissions(userId) {
+  const { data } = await sb.from('settings')
+    .select('value')
+    .eq('key', 'permissions_' + userId)
+    .maybeSingle();
+  memberPermissions = data?.value || null;
+  renderAll(); // re-render with permissions applied
+}
+
+function canAddTasks() {
+  if (!memberPermissions) return true;
+  return memberPermissions.editable_fields?.includes('add_tasks') || false;
+}
+
+function canEditField(field) {
+  if (!memberPermissions) return true; // CEO/unit_head — unrestricted
+  return memberPermissions.editable_fields?.includes(field) || false;
+}
+
+function applyFieldPermissions() {
+  if (!memberPermissions) return; // not a restricted team member
+  const pairs = [
+    ['f_status',          'status'],
+    ['f_notes',           'notes'],
+    ['f_due',             'due'],
+    ['f_due_time',        'due'],
+    ['f_reminder',        'due'],
+    ['f_reminder_time',   'due'],
+    ['f_priority',        'priority'],
+    ['f_assignee',        'assignee'],
+    ['f_delegate_status', 'del_status'],
+  ];
+  pairs.forEach(([elId, field]) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.disabled = !canEditField(field);
+    el.style.opacity = canEditField(field) ? '' : '0.45';
+  });
+  // title and unit always locked for team members
+  ['f_title','f_unit'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = true; el.style.opacity = '0.45'; }
+  });
+  // subtasks add button
+  const addSubBtn = document.getElementById('addSubtaskBtn');
+  if (addSubBtn) addSubBtn.style.display = canEditField('subtasks') ? '' : 'none';
+}
+
 function getFiltered() {
   const q    = document.getElementById('searchInput').value.toLowerCase();
   const unit = document.getElementById('filterUnit').value;
   const pri  = document.getElementById('filterPriority').value;
   const sta  = document.getElementById('filterStatus').value;
   const typ  = document.getElementById('filterType')?.value || '';
+  const permIds = memberPermissions?.task_ids?.length ? memberPermissions.task_ids : null;
   const priOrd = {Critical:0,High:1,Medium:2,Low:3};
   const staOrd = {Blocked:0,'In Progress':1,'Not Started':2,Done:3};
   return tasks.filter(t =>
+    (!permIds || permIds.includes(t.id)) &&
     (!q    || t.title.toLowerCase().includes(q) || (t.unit||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
     (!unit || t.unit === unit) &&
     (!pri  || t.priority === pri) &&
@@ -1650,6 +1703,10 @@ function renderBoard() {
 // ADD / EDIT MODAL
 // ══════════════════════════════════════════════════════════════════
 function openAddModal() {
+  if (!canAddTasks()) {
+    alert('You do not have permission to add new tasks. Contact your administrator.');
+    return;
+  }
   editingId = null; editSubtasks = [];
   document.getElementById('modalTitle').textContent = 'New Task';
   populateBUSelect('f_unit', '');
@@ -1718,6 +1775,7 @@ function openEditModal(id) {
   if (document.getElementById('f_recur_end'))    document.getElementById('f_recur_end').value          = t.recur_end_date||'';
   renderChecklistEdit();
   document.getElementById('taskModal').classList.add('open');
+  applyFieldPermissions();
 }
 
 function closeModal() { document.getElementById('taskModal').classList.remove('open'); }
