@@ -1035,7 +1035,7 @@ function setupRealtime(uid) {
     const t = new Date();
     const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0') + ':' + t.getSeconds().toString().padStart(2,'0');
     const el = document.getElementById('lastSync');
-    if (el) el.textContent = '↻ ' + ts;
+    if (el) el.textContent = '↻ ' + ts + ' · ' + tasks.length + ' tasks';
   }
 
   // Refresh every 10 seconds
