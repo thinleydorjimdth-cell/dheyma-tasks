@@ -1030,21 +1030,20 @@ async function dbSaveSettings(key, value) {
 let realtimeChannel = null;
 
 function setupRealtime(uid) {
-  if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
-  realtimeChannel = sb.channel('dheyma-all-' + uid)
-    .on('postgres_changes', {event:'*', schema:'public', table:'tasks'    }, p => onRealtimeChange('tasks', p))
-    .on('postgres_changes', {event:'*', schema:'public', table:'todos'    }, p => onRealtimeChange('todos', p))
-    .on('postgres_changes', {event:'*', schema:'public', table:'reminders'}, p => onRealtimeChange('reminders', p))
-    .on('postgres_changes', {event:'*', schema:'public', table:'settings' }, p => onRealtimeChange('settings', p))
-    .subscribe(status => {
-      const el = document.getElementById('syncStatus');
-      if (!el) return;
-      if (status === 'SUBSCRIBED')         { el.textContent = '🟢 Live'; el.style.color = 'var(--low)'; }
-      else if (status === 'CLOSED')        { el.textContent = '🔴 Offline'; el.style.color = 'var(--critical)'; }
-      else if (status === 'CHANNEL_ERROR') { el.textContent = '⚠ Realtime error'; el.style.color = 'var(--critical)'; }
-    });
-  // fallback: auto-refresh every 30 seconds in case realtime misses anything
-  setInterval(() => loadAllData(true).then(() => renderAll()), 30000);
+  // Auto-refresh every 10 seconds — reliable across all devices
+  setSyncStatus('ok');
+  setInterval(async () => {
+    await loadAllData(true);
+    renderAll();
+  }, 10000);
+
+  // Also refresh instantly when user switches back to this tab/app
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      await loadAllData(true);
+      renderAll();
+    }
+  });
 }
 
 function onRealtimeChange(table, payload) {
