@@ -61,6 +61,10 @@
   .s-inprogress { color: var(--high); }
   .s-done { color: var(--low); }
   .s-overdue { color: var(--critical); }
+  .s-reminders { color: #a78bfa; }
+  .s-todo { color: #38bdf8; }
+  .stat-card.clickable { cursor: pointer; transition: border-color .15s, background .15s; }
+  .stat-card.clickable:hover { border-color: var(--accent); background: #6366f110; }
 
   /* ── TOOLBAR ── */
   .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -174,11 +178,14 @@
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group.full { grid-column: 1 / -1; }
   label { font-size: .76rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
-  input[type="text"], input[type="date"], textarea, select.form-select {
+  input[type="text"], input[type="date"], input[type="time"], textarea, select.form-select {
     background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
     padding: 9px 12px; color: var(--text); font-size: .875rem; outline: none; width: 100%; font-family: inherit;
   }
-  input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select.form-select:focus { border-color: var(--accent); }
+  input[type="text"]:focus, input[type="date"]:focus, input[type="time"]:focus, textarea:focus, select.form-select:focus { border-color: var(--accent); }
+  .date-time-row { display: flex; gap: 8px; }
+  .date-time-row input[type="date"] { flex: 2; }
+  .date-time-row input[type="time"] { flex: 1; min-width: 90px; }
   textarea { resize: vertical; min-height: 80px; }
   .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
 
@@ -477,7 +484,7 @@
 
     /* ── Touch targets ── */
     .btn, .view-btn, .btn-ghost, .modal-close { min-height: 40px; }
-    select.filter, input[type="text"], input[type="date"],
+    select.filter, input[type="text"], input[type="date"], input[type="time"],
     textarea, select.form-select { font-size: 16px; /* prevents iOS zoom */ min-height: 44px; }
   }
 
@@ -554,11 +561,9 @@
     </select>
     <div class="toolbar-spacer"></div>
     <div class="view-switcher" style="display:flex;gap:4px;">
-      <button class="view-btn active" id="viewTable"     onclick="setView('table')">☰ List</button>
-      <button class="view-btn"        id="viewBoard"     onclick="setView('board')">⊞ Board</button>
-      <button class="view-btn"        id="viewSummary"   onclick="setView('summary')">📊 Summary</button>
-      <button class="view-btn"        id="viewReminders" onclick="setView('reminders')">🔔 Reminders</button>
-      <button class="view-btn"        id="viewTodo"      onclick="setView('todo')">☑ To-Do</button>
+      <button class="view-btn active" id="viewTable"   onclick="setView('table')">☰ List</button>
+      <button class="view-btn"        id="viewBoard"   onclick="setView('board')">⊞ Board</button>
+      <button class="view-btn"        id="viewSummary" onclick="setView('summary')">📊 Summary</button>
     </div>
   </div>
 
@@ -666,12 +671,18 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Due Date</label>
-          <input type="date" id="f_due" />
+          <label>Due Date &amp; Time</label>
+          <div class="date-time-row">
+            <input type="date" id="f_due" />
+            <input type="time" id="f_due_time" />
+          </div>
         </div>
         <div class="form-group">
-          <label>Reminder Date</label>
-          <input type="date" id="f_reminder" />
+          <label>Reminder Date &amp; Time</label>
+          <div class="date-time-row">
+            <input type="date" id="f_reminder" />
+            <input type="time" id="f_reminder_time" />
+          </div>
         </div>
         <!-- Recurring task row -->
         <div class="form-group full" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex-direction:row;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -765,8 +776,11 @@
         <input type="text" id="r_title" placeholder="What do you need to be reminded about?" />
       </div>
       <div class="form-group full">
-        <label>Date</label>
-        <input type="date" id="r_date" />
+        <label>Date &amp; Time</label>
+        <div class="date-time-row">
+          <input type="date" id="r_date" />
+          <input type="time" id="r_time" />
+        </div>
       </div>
       <div class="form-group full">
         <label>Notes</label>
@@ -1467,7 +1481,7 @@ function renderSummary() {
     const pgCls = `pg-${p.toLowerCase()}`;
     const rows = group.length ? group.map(t => {
       const dc = dueCls(t.due, t.status);
-      const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&t.due<todayStr()?' ⚠':'') : '';
+      const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&dateOf(t.due)<todayStr()?' ⚠':'') : '';
       return `<div class="pg-task-row" onclick="openDetail('${t.id}')">
         <div class="pg-task-title${t.status==='Done'?' '+' done-row':''}" style="${t.status==='Done'?'opacity:.45;text-decoration:line-through':''}">
           ${esc(t.title)}
@@ -1491,7 +1505,7 @@ function renderSummary() {
   }).join('');
 
   // ── overdue callout ───────────────────────────────────────────
-  const overdue = all.filter(t => t.due && t.due < todayStr() && t.status !== 'Done');
+  const overdue = all.filter(t => t.due && dateOf(t.due) < todayStr() && t.status !== 'Done');
   const overdueBar = overdue.length ? `
     <div style="background:#ef444412;border:1px solid #ef444440;border-radius:10px;padding:12px 18px;margin-bottom:22px;display:flex;align-items:center;gap:12px;">
       <span style="font-size:1.3rem">⚠️</span>
@@ -1543,13 +1557,24 @@ function filterAndGoList(val) {
 
 function renderStats() {
   const today = todayStr();
+  const overdueCnt  = tasks.filter(t=>t.due&&dateOf(t.due)<today&&t.status!=='Done').length;
+  const activeRems  = reminders.filter(r=>!r.dismissed).length;
+  const activeTodos = todos.filter(t=>!t.done).length;
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-value s-total">${tasks.length}</div></div>
     <div class="stat-card"><div class="stat-label">Critical</div><div class="stat-value s-critical">${tasks.filter(t=>t.priority==='Critical'&&t.status!=='Done').length}</div></div>
     <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value s-inprogress">${tasks.filter(t=>t.status==='In Progress').length}</div></div>
     <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value s-done">${tasks.filter(t=>t.status==='Done').length}</div></div>
-    <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value s-overdue">${tasks.filter(t=>t.due&&t.due<today&&t.status!=='Done').length}</div>
-      <div class="stat-sub">${tasks.filter(t=>t.due&&t.due<today&&t.status!=='Done').length>0?'Needs attention':''}</div></div>
+    <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value s-overdue">${overdueCnt}</div>
+      <div class="stat-sub">${overdueCnt>0?'Needs attention':''}</div></div>
+    <div class="stat-card clickable" onclick="setView('reminders')" title="View Reminders">
+      <div class="stat-label">🔔 Reminders</div>
+      <div class="stat-value s-reminders">${activeRems}</div>
+      <div class="stat-sub">active</div></div>
+    <div class="stat-card clickable" onclick="setView('todo')" title="View To-Do List">
+      <div class="stat-label">☑ To-Do</div>
+      <div class="stat-value s-todo">${activeTodos}</div>
+      <div class="stat-sub">pending</div></div>
   `;
 }
 
@@ -1566,7 +1591,7 @@ function renderTable() {
     : `<th></th>`).join('');
   const rows = filtered.map(t => {
     const dc = dueCls(t.due,t.status);
-    const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&t.due<todayStr()?' ⚠':'') : '—';
+    const dl = t.due ? fmtDate(t.due)+(t.status!=='Done'&&dateOf(t.due)<todayStr()?' ⚠':'') : '—';
     const rc = t.status==='Done'?'done-row':t.status==='Blocked'?'blocked-row':'';
     const typBadge = typeBadgeHtml(t.task_type);
     const delBadge = t.delegated_to_name ? `<span class="type-badge type-delegation" style="font-size:.68rem;">📤 ${esc(t.delegated_to_name)}</span>` : '';
@@ -1634,7 +1659,7 @@ function openAddModal() {
   document.getElementById('addBUInlineRow').style.display = 'none';
   document.getElementById('formBody').classList.remove('revealed');
   document.getElementById('formPlaceholder').style.display = 'block';
-  ['f_title','f_assignee','f_due','f_reminder','f_notes','f_delegate_note','f_recur_end'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['f_title','f_assignee','f_due','f_due_time','f_reminder','f_reminder_time','f_notes','f_delegate_note','f_recur_end'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('f_priority').value  = 'Medium';
   document.getElementById('f_status').value    = 'Not Started';
   if (document.getElementById('f_type'))    document.getElementById('f_type').value    = 'Task';
@@ -1672,8 +1697,10 @@ function openEditModal(id) {
   document.getElementById('f_assignee').value = t.assignee||'';
   document.getElementById('f_priority').value = t.priority;
   document.getElementById('f_status').value   = t.status;
-  document.getElementById('f_due').value      = t.due||'';
-  document.getElementById('f_reminder').value = t.reminder||'';
+  document.getElementById('f_due').value      = dateOf(t.due||'');
+  if (document.getElementById('f_due_time'))      document.getElementById('f_due_time').value      = timeOf(t.due||'');
+  document.getElementById('f_reminder').value = dateOf(t.reminder||'');
+  if (document.getElementById('f_reminder_time')) document.getElementById('f_reminder_time').value = timeOf(t.reminder||'');
   document.getElementById('f_notes').value    = t.notes||'';
   if (document.getElementById('f_type')) document.getElementById('f_type').value = t.task_type||'Task';
   // delegation
@@ -1723,8 +1750,8 @@ function saveTask() {
     delegation_status:  delId ? (document.getElementById('f_delegate_status')?.value || 'Pending') : '',
     priority:           document.getElementById('f_priority').value,
     status:             document.getElementById('f_status').value,
-    due:                document.getElementById('f_due').value,
-    reminder:           document.getElementById('f_reminder').value,
+    due:                combineDateTime(document.getElementById('f_due').value, document.getElementById('f_due_time')?.value),
+    reminder:           combineDateTime(document.getElementById('f_reminder').value, document.getElementById('f_reminder_time')?.value),
     notes:              document.getElementById('f_notes').value.trim(),
     subtasks:           editSubtasks,
     is_recurring:       isRecurring,
@@ -1837,18 +1864,23 @@ function goBack() { setView(prevView === currentView ? 'table' : prevView); }
 // ══════════════════════════════════════════════════════════════════
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function in3days()  { const d=new Date(); d.setDate(d.getDate()+3); return d.toISOString().slice(0,10); }
+function dateOf(val) { return val ? val.slice(0,10) : ''; }
+function timeOf(val) { return val && val.length > 10 ? val.slice(11,16) : ''; }
+function combineDateTime(date, time) { if (!date) return ''; return time ? date + ' ' + time : date; }
 function dueCls(due,status) {
   if (!due||status==='Done') return 'due-ok';
-  const t=todayStr();
-  if (due<t)        return 'due-overdue';
-  if (due===t)      return 'due-today';
-  if (due<=in3days()) return 'due-soon';
+  const d=dateOf(due), t=todayStr();
+  if (d<t)        return 'due-overdue';
+  if (d===t)      return 'due-today';
+  if (d<=in3days()) return 'due-soon';
   return 'due-ok';
 }
 function fmtDate(d) {
   if (!d) return '';
-  const [y,m,day] = d.split('-');
-  return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${+day}, ${y}`;
+  const [y,m,day] = dateOf(d).split('-');
+  const dateStr = `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${+day}, ${y}`;
+  const t = timeOf(d);
+  return t ? `${dateStr} at ${t}` : dateStr;
 }
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1886,10 +1918,10 @@ function renderReminders() {
   ];
 
   const groups = [
-    { key:'overdue', label:'⚠️ Overdue',   cls:'rdb-overdue', items: all.filter(r => r.date && r.date < today) },
-    { key:'today',   label:'📅 Today',      cls:'rdb-today',   items: all.filter(r => r.date === today) },
-    { key:'week',    label:'📆 This Week',  cls:'rdb-week',    items: all.filter(r => r.date > today && r.date <= in7s) },
-    { key:'later',   label:'🗓 Later',      cls:'rdb-later',   items: all.filter(r => r.date > in7s) },
+    { key:'overdue', label:'⚠️ Overdue',   cls:'rdb-overdue', items: all.filter(r => r.date && dateOf(r.date) < today) },
+    { key:'today',   label:'📅 Today',      cls:'rdb-today',   items: all.filter(r => dateOf(r.date) === today) },
+    { key:'week',    label:'📆 This Week',  cls:'rdb-week',    items: all.filter(r => dateOf(r.date) > today && dateOf(r.date) <= in7s) },
+    { key:'later',   label:'🗓 Later',      cls:'rdb-later',   items: all.filter(r => dateOf(r.date) > in7s) },
     { key:'nodate',  label:'📌 No Date',    cls:'rdb-nodate',  items: all.filter(r => !r.date) },
   ].filter(g => g.items.length);
 
@@ -1949,6 +1981,7 @@ function openAddReminder() {
   document.getElementById('remModalTitle').textContent = 'New Reminder';
   document.getElementById('r_title').value = '';
   document.getElementById('r_date').value  = '';
+  if (document.getElementById('r_time')) document.getElementById('r_time').value = '';
   document.getElementById('r_notes').value = '';
   document.getElementById('remModal').classList.add('open');
   setTimeout(() => document.getElementById('r_title').focus(), 100);
@@ -1958,7 +1991,8 @@ function openEditReminder(id) {
   editingRemId = id;
   document.getElementById('remModalTitle').textContent = 'Edit Reminder';
   document.getElementById('r_title').value = r.title;
-  document.getElementById('r_date').value  = r.date  || '';
+  document.getElementById('r_date').value  = dateOf(r.date || '');
+  if (document.getElementById('r_time')) document.getElementById('r_time').value = timeOf(r.date || '');
   document.getElementById('r_notes').value = r.notes || '';
   document.getElementById('remModal').classList.add('open');
 }
@@ -1967,7 +2001,7 @@ function saveReminder() {
   const title = document.getElementById('r_title').value.trim();
   if (!title) { document.getElementById('r_title').style.borderColor='var(--critical)'; document.getElementById('r_title').focus(); return; }
   document.getElementById('r_title').style.borderColor = '';
-  const data = { title, date: document.getElementById('r_date').value, notes: document.getElementById('r_notes').value.trim(), dismissed: false };
+  const data = { title, date: combineDateTime(document.getElementById('r_date').value, document.getElementById('r_time')?.value), notes: document.getElementById('r_notes').value.trim(), dismissed: false };
   if (editingRemId) {
     const i = reminders.findIndex(r => r.id === editingRemId);
     reminders[i] = { ...reminders[i], ...data };
@@ -2137,9 +2171,9 @@ function toggleTodoArchive() { showArchive = !showArchive; renderAll(); }
 function checkReminders() {
   const today = todayStr();
   const msgs = [
-    ...tasks.filter(t=>t.status!=='Done'&&t.due===today).map(t=>`📅 Due today: "${t.title}"`),
-    ...tasks.filter(t=>t.status!=='Done'&&t.reminder===today).map(t=>`🔔 Task reminder: "${t.title}"`),
-    ...reminders.filter(r=>!r.dismissed&&r.date===today).map(r=>`🔔 ${r.title}`),
+    ...tasks.filter(t=>t.status!=='Done'&&dateOf(t.due)===today).map(t=>`📅 Due today: "${t.title}"`),
+    ...tasks.filter(t=>t.status!=='Done'&&dateOf(t.reminder)===today).map(t=>`🔔 Task reminder: "${t.title}"`),
+    ...reminders.filter(r=>!r.dismissed&&dateOf(r.date)===today).map(r=>`🔔 ${r.title}`),
     ...todos.filter(t=>!t.done&&t.deadline===today).map(t=>`☑ To-do due today: "${t.text}"`),
   ];
   if (!msgs.length) return;
