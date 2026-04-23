@@ -202,21 +202,36 @@
       </div>
     </div>
 
-    <!-- RIGHT: Add member + BU breakdown -->
+    <!-- RIGHT: Create Member Account + BU breakdown -->
     <div>
       <div class="section-card">
         <div class="section-title" style="margin-bottom:16px;">
           <span class="dot" style="background:var(--high);"></span>
-          Quick Add Member
+          Create Member Account
         </div>
         <div class="add-member-form">
           <div class="form-group">
             <label>Full Name *</label>
-            <input type="text" class="form-input" id="qm_name" placeholder="Team member's name">
+            <input type="text" class="form-input" id="qm_name" placeholder="e.g. Tenzin Wangchuk">
           </div>
           <div class="form-group">
-            <label>Email *</label>
+            <label>Email Address *</label>
             <input type="email" class="form-input" id="qm_email" placeholder="member@dheyma.bt">
+          </div>
+          <div class="form-group">
+            <label>Temporary Password *</label>
+            <div style="display:flex;gap:8px;">
+              <div style="position:relative;flex:1;">
+                <input type="password" class="form-input" id="qm_pass" placeholder="Min. 8 characters" style="padding-right:40px;">
+                <button type="button" onclick="togglePassVis()" title="Show/hide"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.95rem;" id="passEyeBtn">👁</button>
+              </div>
+              <button class="btn btn-ghost" style="white-space:nowrap;flex-shrink:0;" onclick="autoGenPass()" title="Auto-generate a strong password">⚡ Generate</button>
+            </div>
+            <div id="genPassDisplay" style="display:none;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:.8rem;display:flex;align-items:center;gap:8px;">
+              <span id="genPassText" style="flex:1;font-family:monospace;color:var(--accent2);letter-spacing:.5px;"></span>
+              <button type="button" onclick="copyGenPass()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;" title="Copy">📋</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Role</label>
@@ -232,11 +247,19 @@
               <option value="">— None —</option>
             </select>
           </div>
-          <div class="msg" id="qmMsg"></div>
+          <div class="msg" id="qmMsg" style="min-height:18px;"></div>
           <div class="form-actions">
-            <button class="btn btn-primary" style="width:100%;" onclick="quickAddMember()">Invite &amp; Add</button>
+            <button class="btn btn-primary" style="width:100%;" id="btnCreate" onclick="createMemberAccount()">
+              ✉ Create Account &amp; Send Verification
+            </button>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:10px;line-height:1.5;">The member will receive an invitation email to create their account. You can also update roles for existing users below.</p>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:12px;">
+            <p style="font-size:.72rem;color:var(--muted);line-height:1.6;">
+              📧 A <strong style="color:var(--text);">verification email</strong> is sent to the member automatically.<br>
+              They must click the link in the email before they can sign in.<br>
+              Share the <strong style="color:var(--text);">email &amp; temporary password</strong> with them separately.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -519,34 +542,87 @@ function renderBUBreakdown() {
   }).join('');
 }
 
-// ── QUICK ADD (invite-based) ──────────────────────────────────────
-async function quickAddMember() {
+// ── CREATE MEMBER ACCOUNT ────────────────────────────────────────
+function autoGenPass() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+  const pwd = Array.from({length: 12}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const inp = document.getElementById('qm_pass');
+  inp.type = 'text';
+  inp.value = pwd;
+  const box = document.getElementById('genPassDisplay');
+  box.style.display = 'flex';
+  document.getElementById('genPassText').textContent = pwd;
+}
+
+function copyGenPass() {
+  const txt = document.getElementById('genPassText').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.querySelector('#genPassDisplay button');
+    btn.textContent = '✓'; setTimeout(() => btn.textContent = '📋', 1500);
+  });
+}
+
+function togglePassVis() {
+  const inp = document.getElementById('qm_pass');
+  const btn = document.getElementById('passEyeBtn');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+async function createMemberAccount() {
   const name  = document.getElementById('qm_name').value.trim();
   const email = document.getElementById('qm_email').value.trim();
+  const pass  = document.getElementById('qm_pass').value;
   const role  = document.getElementById('qm_role').value;
   const bu    = document.getElementById('qm_bu').value;
   const msg   = document.getElementById('qmMsg');
+  const btn   = document.getElementById('btnCreate');
   msg.className = 'msg'; msg.textContent = '';
 
-  if (!name || !email) { msg.className='msg msg-err'; msg.textContent='Name and email are required.'; return; }
+  if (!name)  { msg.className='msg msg-err'; msg.textContent='Full name is required.'; return; }
+  if (!email) { msg.className='msg msg-err'; msg.textContent='Email address is required.'; return; }
+  if (!pass || pass.length < 8) { msg.className='msg msg-err'; msg.textContent='Password must be at least 8 characters.'; return; }
 
-  // Use Supabase admin invite if available, otherwise guide user
-  // For now: create a profile entry with matching email as a placeholder
-  // Real invite: use Supabase dashboard or Admin API
-  // We'll store member info in a pending_invites setting
-  const existing = members.find(m => m.full_name?.toLowerCase() === name.toLowerCase());
-  if (existing) { msg.className='msg msg-err'; msg.textContent='A member with this name already exists.'; return; }
+  btn.disabled = true; btn.textContent = 'Creating account…';
 
-  // Save to a pending_invites settings key
-  const { data: settingsRow } = await sb.from('settings').select('value').eq('key','pending_invites').eq('user_id',currentUser.id).maybeSingle();
-  const invites = settingsRow?.value || [];
-  invites.push({ name, email, role, bu, invited_at: new Date().toISOString() });
-  await sb.from('settings').upsert({ key:'pending_invites', value:invites, user_id:currentUser.id }, { onConflict:'user_id,key' });
+  // Create the Supabase auth account — verification email is sent automatically
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { full_name: name } }
+  });
+
+  if (error) {
+    msg.className = 'msg msg-err';
+    msg.textContent = error.message;
+    btn.disabled = false; btn.innerHTML = '✉ Create Account &amp; Send Verification';
+    return;
+  }
+
+  const userId = data?.user?.id;
+
+  // Set role and BU in profiles table (trigger may have already created the row)
+  if (userId) {
+    await sb.from('profiles').upsert(
+      { id: userId, full_name: name, role, business_unit: bu },
+      { onConflict: 'id' }
+    );
+  }
 
   msg.className = 'msg msg-ok';
-  msg.textContent = `✓ ${name} added to pending invites. Use Supabase Auth dashboard to send the invitation email to ${email}.`;
+  msg.textContent = `✓ Account created! Verification email sent to ${email}. Share their temporary password with them.`;
+
+  // Reset form
   document.getElementById('qm_name').value = '';
   document.getElementById('qm_email').value = '';
+  document.getElementById('qm_pass').value = '';
+  document.getElementById('qm_pass').type = 'password';
+  document.getElementById('passEyeBtn').textContent = '👁';
+  document.getElementById('genPassDisplay').style.display = 'none';
+  btn.disabled = false; btn.innerHTML = '✉ Create Account &amp; Send Verification';
+
+  await loadMembers();
+  renderAll();
 }
 
 // ── EDIT MEMBER MODAL ─────────────────────────────────────────────
@@ -744,9 +820,8 @@ function esc(s) {
 
 // ── ADD MEMBER MODAL (full) ───────────────────────────────────────
 function openAddModal() {
-  // scroll to the quick add form on right panel
-  document.getElementById('qm_name').focus();
   document.getElementById('qm_name').scrollIntoView({ behavior:'smooth', block:'center' });
+  setTimeout(() => document.getElementById('qm_name').focus(), 400);
 }
 </script>
 </body>
